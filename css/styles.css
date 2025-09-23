@@ -289,26 +289,70 @@ body {
   color: var(--muted);
 }
 
+
 .warehouse-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1.2rem;
+  align-content: flex-start;
 }
 
 .warehouse-item {
   border: 1px solid rgba(223, 179, 122, 0.55);
   border-radius: 16px;
-  padding: 1.25rem;
+  padding: 1.1rem 1.25rem;
   background: linear-gradient(180deg, #fff8ed, #ffe7c2);
+  width: 240px;
+  min-height: 260px;
   display: grid;
-  gap: 0.75rem;
+  grid-template-rows: auto auto 1fr auto auto;
+  gap: 0.65rem;
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.7), 0 12px 24px rgba(179, 135, 74, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.warehouse-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 28px rgba(179, 135, 74, 0.2);
 }
 
 .warehouse-item header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.card-illustration {
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 214, 143, 0.6));
+  border: 1px solid rgba(219, 168, 103, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.6rem;
+  font-size: 2.2rem;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.card-illustration::after {
+  content: attr(data-stage);
+  position: absolute;
+  bottom: -10px;
+  right: -10px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  border: 1px solid rgba(210, 170, 110, 0.5);
+  padding: 0.1rem 0.35rem;
+  font-size: 1rem;
+  box-shadow: 0 4px 10px rgba(163, 121, 66, 0.15);
+}
+
+.card-illustration[data-stage='']::after,
+.card-illustration:not([data-stage])::after {
+  display: none;
 }
 
 .warehouse-item .quantity {
@@ -338,31 +382,106 @@ body {
   gap: 0.5rem;
 }
 
-.plots-list {
+.plots-browser {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 1.5rem;
+  align-items: start;
+}
+
+.plots-browser.single-column {
+  grid-template-columns: 1fr;
+}
+
+.plots-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  align-content: flex-start;
 }
 
 .plot-card {
-  padding: 1.5rem;
+  padding: 1.35rem 1.25rem 1.6rem;
   border: 1px solid rgba(205, 160, 94, 0.6);
   border-radius: var(--card-radius);
   background: linear-gradient(180deg, #fffdf7, #ffe8c9);
-  box-shadow: 0 12px 28px rgba(163, 121, 66, 0.15);
+  box-shadow: 0 12px 24px rgba(163, 121, 66, 0.12);
   display: grid;
-  gap: 1.2rem;
+  gap: 0.9rem;
+  width: 230px;
+  min-height: 240px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.plot-header {
+.plot-card .btn {
+  justify-self: stretch;
+}
+
+.plot-card.active {
+  border-color: rgba(205, 160, 94, 0.9);
+  box-shadow: 0 18px 30px rgba(163, 121, 66, 0.18);
+  transform: translateY(-2px);
+}
+
+.plot-card header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .plot-controls,
 .tree-controls {
   display: flex;
   gap: 0.35rem;
+}
+
+.plot-detail {
+  border: 1px solid rgba(205, 160, 94, 0.4);
+  border-radius: var(--card-radius);
+  background: linear-gradient(180deg, #fffdf5, #ffe1b6);
+  padding: 1.5rem;
+  box-shadow: 0 14px 32px rgba(163, 121, 66, 0.16);
+  display: grid;
+  gap: 1.2rem;
+}
+
+.plot-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.plot-detail-body {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.plot-stats {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.plant-control {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.plant-select {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.plant-select select {
+  border: 1px solid rgba(205, 160, 94, 0.6);
+  border-radius: 12px;
+  padding: 0.45rem 0.75rem;
+  background: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  width: 100%;
 }
 
 .icon-button {
@@ -391,30 +510,39 @@ body {
 .plot-actions {
   display: flex;
   gap: 0.8rem;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .trees-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
+.plot-detail .trees-grid {
+  justify-content: center;
+}
+
 .tree-card {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(210, 170, 110, 0.5);
-  border-radius: 16px;
-  padding: 1rem 1.2rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(210, 170, 110, 0.55);
+  border-radius: 18px;
+  padding: 1rem 1.2rem 1.3rem;
   display: grid;
-  gap: 1rem;
+  gap: 0.9rem;
   position: relative;
   overflow: hidden;
+  width: 250px;
+  min-height: 300px;
+  box-shadow: 0 14px 32px rgba(163, 121, 66, 0.18);
 }
 
 .tree-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 220, 158, 0.25));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 220, 158, 0.2));
   pointer-events: none;
 }
 
@@ -601,8 +729,15 @@ body {
     align-items: flex-start;
   }
 
+  .plots-browser {
+    grid-template-columns: 1fr;
+  }
+
   .warehouse-grid,
-  .trees-grid,
+  .trees-grid {
+    justify-content: center;
+  }
+
   .profile-grid {
     grid-template-columns: 1fr;
   }

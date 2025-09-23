@@ -125,7 +125,42 @@
                 <button class="btn" data-action="buyPlot">Приобрести участок</button>
               </div>
             </header>
-            <div class="plots-list" data-bind="plots"></div>
+            <div class="plots-browser">
+              <div class="plots-grid" data-bind="plots"></div>
+              <aside class="plot-detail" data-bind="plotDetail" hidden>
+                <header class="plot-detail-header">
+                  <div>
+                    <h3 data-field="plotTitle"></h3>
+                    <p class="muted" data-field="plotSubtitle"></p>
+                  </div>
+                  <div class="plot-controls">
+                    <button class="icon-button" data-action="togglePlotAutoWater" title="Автополив">
+                      <span class="icon">💧</span>
+                    </button>
+                    <button class="icon-button" data-action="togglePlotAutoHarvest" title="Автосбор">
+                      <span class="icon">🧺</span>
+                    </button>
+                  </div>
+                </header>
+                <div class="plot-detail-body">
+                  <div class="plot-stats">
+                    <p>Вместимость: <strong data-field="plotCapacity"></strong></p>
+                    <p class="muted" data-field="plotHint"></p>
+                  </div>
+                  <div class="plot-actions">
+                    <div class="plant-control">
+                      <label class="plant-select">
+                        <span>Выберите дерево</span>
+                        <select data-action="chooseTreeType"></select>
+                      </label>
+                      <button class="btn small primary" data-action="plantTree">Посадить</button>
+                    </div>
+                    <button class="btn small" data-action="upgradePlot">Улучшить участок</button>
+                  </div>
+                  <div class="trees-grid" data-bind="plotTrees"></div>
+                </div>
+              </aside>
+            </div>
           </section>
 
           <section class="panel" data-view-panel="profile" hidden>
@@ -164,6 +199,7 @@
 
     <template id="warehouse-item-template">
       <article class="warehouse-item">
+        <div class="card-illustration" data-field="art"></div>
         <header>
           <h3 data-field="title"></h3>
           <span class="quantity" data-field="quantity"></span>
@@ -181,10 +217,11 @@
 
     <template id="plot-card-template">
       <section class="plot-card">
-        <header class="plot-header">
+        <div class="card-illustration" data-field="art"></div>
+        <header>
           <div>
             <h3 data-field="title"></h3>
-            <p class="muted" data-field="capacity"></p>
+            <p class="muted" data-field="subtitle"></p>
           </div>
           <div class="plot-controls">
             <button class="icon-button" data-action="togglePlotAutoWater" title="Автополив">
@@ -195,16 +232,14 @@
             </button>
           </div>
         </header>
-        <div class="plot-actions">
-          <button class="btn small" data-action="upgradePlot">Улучшить участок</button>
-          <button class="btn small" data-action="plantTree">Посадить дерево</button>
-        </div>
-        <div class="trees-grid" data-field="trees"></div>
+        <p class="muted" data-field="summary"></p>
+        <button class="btn small" data-action="openPlot">Открыть участок</button>
       </section>
     </template>
 
     <template id="tree-card-template">
       <article class="tree-card">
+        <div class="card-illustration" data-field="art"></div>
         <header>
           <div>
             <h4 data-field="title"></h4>

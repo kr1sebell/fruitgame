@@ -11,6 +11,15 @@ function nextId(prefix) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
+function defaultCropType() {
+  const entries = Object.keys(CONFIG.crops);
+  return entries[0] ?? 'orange';
+}
+
+function resolveCrop(type) {
+  return CONFIG.crops[type] ?? CONFIG.crops[defaultCropType()];
+}
+
 export class Player {
   constructor(dto = {}) {
     this.name = dto.name ?? 'Фермер';
@@ -128,9 +137,15 @@ export class Warehouse {
   }
 
   cleanupExpired(now = Date.now()) {
-    const before = this.items.length;
-    this.items = this.items.filter((item) => item.remainingTime(now) > 0);
-    return before - this.items.length;
+    let removedQuantity = 0;
+    this.items = this.items.filter((item) => {
+      if (item.remainingTime(now) <= 0) {
+        removedQuantity += item.quantity;
+        return false;
+      }
+      return true;
+    });
+    return removedQuantity;
   }
 
   upgradeCost() {
@@ -142,6 +157,41 @@ export class Warehouse {
 
   upgrade() {
     this.level += 1;
+  }
+
+  totalQuantity(type) {
+    return this.items
+      .filter((item) => item.type === type)
+      .reduce((total, item) => total + item.quantity, 0);
+  }
+
+  removeQuantity(type, quantity) {
+    if (quantity <= 0) {
+      return 0;
+    }
+    const sorted = this.items
+      .filter((item) => item.type === type)
+      .sort((a, b) => (a.expiresAt ?? 0) - (b.expiresAt ?? 0));
+    let remaining = quantity;
+    sorted.forEach((item) => {
+      if (remaining <= 0) {
+        return;
+      }
+      const deduction = Math.min(item.quantity, remaining);
+      item.quantity -= deduction;
+      remaining -= deduction;
+    });
+    this.items = this.items.filter((item) => item.quantity > 0);
+    return quantity - remaining;
+  }
+
+  removeType(type) {
+    const removed = this.totalQuantity(type);
+    if (removed <= 0) {
+      return 0;
+    }
+    this.items = this.items.filter((item) => item.type !== type);
+    return removed;
   }
 
   serialize() {
@@ -210,7 +260,7 @@ export class Tree {
   constructor(dto = {}) {
     this.id = dto.id ?? nextId('tree');
     this.plotId = dto.plotId;
-    this.type = dto.type ?? 'orange';
+    this.type = dto.type ?? defaultCropType();
     this.level = dto.level ?? 0;
     this.growthProgress = dto.growthProgress ?? 0;
     this.hydrationRemaining = dto.hydrationRemaining ?? CONFIG.durations.hydration;
@@ -227,7 +277,7 @@ export class Tree {
   }
 
   get growthDuration() {
-    return computeGrowthDuration(this.level);
+    return computeGrowthDuration(this.level, this.type);
   }
 
   get growthPercent() {
@@ -242,9 +292,15 @@ export class Tree {
   }
 
   harvestYield() {
-    const base = CONFIG.tree.baseYield;
-    const bonus = (Math.max(1, this.level) - 1) * CONFIG.tree.yieldPerLevel;
+    const crop = resolveCrop(this.type);
+    const base = crop.baseYield ?? 10;
+    const bonus = (Math.max(1, this.level) - 1) * (crop.yieldPerLevel ?? 5);
     return Math.round(base + bonus);
+  }
+
+  get produceType() {
+    const crop = resolveCrop(this.type);
+    return crop.produce ?? this.type;
   }
 
   upgradeCost() {
@@ -320,7 +376,7 @@ export class Tree {
 
 export function createDefaultPlotAndTree() {
   const plot = new Plot({ level: 1 });
-  const tree = new Tree({ plotId: plot.id, level: 0, type: 'orange' });
+  const tree = new Tree({ plotId: plot.id, level: 0 });
   plot.registerTree(tree);
   return { plot, tree };
 }

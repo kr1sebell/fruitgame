@@ -2,6 +2,19 @@ import { CONFIG, formatCurrency } from './config.js';
 import { StorageService } from './storage.js';
 import { Player, Warehouse, Plot, Tree, createDefaultPlotAndTree } from './models.js';
 
+const DEFAULT_CROP_TYPE = Object.keys(CONFIG.crops)[0] ?? 'orange';
+
+function resolveCrop(type) {
+  return CONFIG.crops[type] ?? CONFIG.crops[DEFAULT_CROP_TYPE];
+}
+
+function computePlantCost(plot, cropType = DEFAULT_CROP_TYPE) {
+  const crop = resolveCrop(cropType);
+  const base = crop.seedCost ?? 800;
+  const multiplier = 1 + 0.15 * plot.treeIds.length;
+  return Math.round(base * multiplier);
+}
+
 export class Game {
   constructor(storage = new StorageService()) {
     this.storage = storage;
@@ -214,7 +227,7 @@ export class Game {
   cleanupExpired(now) {
     const removed = this.warehouse.cleanupExpired(now);
     if (removed > 0) {
-      this.enqueueMessage(`Склад очистился от ${removed} просроченных партий.`, 'warning');
+      this.enqueueMessage(`Склад очистился от ${removed} испорченных ед. продукции.`, 'warning');
     }
   }
 
@@ -239,7 +252,7 @@ export class Game {
     return { success: true };
   }
 
-  plantTree(plotId) {
+  plantTree(plotId, type = DEFAULT_CROP_TYPE) {
     const plot = this.plots.get(plotId);
     if (!plot) {
       this.enqueueMessage('Участок не найден.', 'error');
@@ -251,16 +264,18 @@ export class Game {
       this.emitChange();
       return { success: false, message: 'Нет свободных слотов на участке.' };
     }
-    const cost = Math.round(CONFIG.tree.baseCost * (1 + 0.15 * plot.treeIds.length));
+    const crop = resolveCrop(type);
+    const cost = computePlantCost(plot, type);
     if (!this.player.spend(cost)) {
       this.enqueueMessage('Недостаточно монет для посадки дерева.', 'error');
       this.emitChange();
       return { success: false, message: 'Недостаточно монет для посадки дерева.' };
     }
-    const tree = new Tree({ plotId: plot.id, level: 0, type: 'orange' });
+    const tree = new Tree({ plotId: plot.id, level: 0, type });
     this.trees.set(tree.id, tree);
     plot.registerTree(tree);
-    this.enqueueMessage(`Новое дерево посажено за ${formatCurrency(cost)} монет.`, 'success');
+    const title = crop.title ?? 'Дерево';
+    this.enqueueMessage(`${title} посажено за ${formatCurrency(cost)} монет.`, 'success');
     this.save();
     this.emitChange();
     return { success: true };
@@ -337,7 +352,7 @@ export class Game {
       }
       return { success: false, message: 'Урожай ещё не готов.' };
     }
-    const produceType = tree.type;
+    const produceType = tree.produceType;
     const produceMeta = CONFIG.produce[produceType];
     const quantity = tree.harvestYield();
     const weight = quantity * (produceMeta?.weight ?? 1);
@@ -353,7 +368,11 @@ export class Game {
       return { success: false, message: 'Не удалось добавить урожай на склад.' };
     }
     tree.resetGrowth();
-    this.enqueueMessage(`Собрано ${quantity} ед. урожая.`, options.auto ? 'info' : 'success');
+    const name = produceMeta?.name ?? 'урожай';
+    this.enqueueMessage(
+      `Собрано ${quantity} ед. товара: ${name}.`,
+      options.auto ? 'info' : 'success'
+    );
     this.save();
     this.emitChange();
     return { success: true };
@@ -425,84 +444,107 @@ export class Game {
     return { success: true };
   }
 
-  sellItem(itemId) {
-    const item = this.warehouse.getItem(itemId);
-    if (!item) {
-      this.enqueueMessage('Партия не найдена.', 'error');
+  sellProduce(type) {
+    const total = this.warehouse.totalQuantity(type);
+    if (total <= 0) {
+      this.enqueueMessage('На складе нет такого продукта.', 'error');
       this.emitChange();
-      return { success: false, message: 'Партия не найдена.' };
+      return { success: false, message: 'Нет запасов для продажи.' };
     }
-    const produce = CONFIG.produce[item.type];
-    const reward = (produce?.sellPrice ?? 1) * item.quantity;
+    const produce = CONFIG.produce[type];
+    const reward = (produce?.sellPrice ?? 1) * total;
+    this.warehouse.removeType(type);
     this.player.earn(reward);
-    this.warehouse.removeItem(item.id);
-    this.enqueueMessage(`Продано за ${formatCurrency(reward)} монет.`, 'success');
+    this.enqueueMessage(
+      `Продано ${total} ед. (${produce?.name ?? type}) за ${formatCurrency(reward)} монет.`,
+      'success'
+    );
     this.save();
     this.emitChange();
     return { success: true };
   }
 
-  processItem(itemId) {
-    const item = this.warehouse.getItem(itemId);
-    if (!item) {
-      this.enqueueMessage('Партия не найдена.', 'error');
+  processProduce(type) {
+    const produce = CONFIG.produce[type];
+    if (!produce) {
+      this.enqueueMessage('Неизвестный продукт.', 'error');
       this.emitChange();
-      return { success: false, message: 'Партия не найдена.' };
+      return { success: false, message: 'Неизвестный продукт.' };
     }
-    const produce = CONFIG.produce[item.type];
-    if (!produce?.process) {
+    if (!produce.process) {
       this.enqueueMessage('Этот продукт нельзя переработать.', 'error');
       this.emitChange();
       return { success: false, message: 'Этот продукт нельзя переработать.' };
     }
     const { ratio, result: resultPerBatch, product } = produce.process;
-    const batches = Math.floor(item.quantity / ratio);
+    const total = this.warehouse.totalQuantity(type);
+    const batches = Math.floor(total / ratio);
     if (batches <= 0) {
       this.enqueueMessage('Недостаточно сырья для переработки.', 'error');
       this.emitChange();
       return { success: false, message: 'Недостаточно сырья для переработки.' };
     }
-    const removedQuantity = batches * ratio;
-    item.quantity -= removedQuantity;
-    if (item.quantity <= 0) {
-      this.warehouse.removeItem(item.id);
-    }
     const outputQty = batches * resultPerBatch;
     const resultMeta = CONFIG.produce[product];
     const requiredWeight = outputQty * (resultMeta?.weight ?? 1);
     if (!this.warehouse.canStore(requiredWeight)) {
-      // rollback
-      if (item.quantity === 0) {
-        item.quantity = removedQuantity;
-        this.warehouse.items.push(item);
-      } else {
-        item.quantity += removedQuantity;
-      }
       this.enqueueMessage('Недостаточно места на складе для результата.', 'error');
       this.emitChange();
       return { success: false, message: 'Недостаточно места на складе для результата.' };
     }
+    const removed = this.warehouse.removeQuantity(type, batches * ratio);
+    if (removed <= 0) {
+      this.enqueueMessage('Не удалось списать сырьё.', 'error');
+      this.emitChange();
+      return { success: false, message: 'Не удалось списать сырьё.' };
+    }
     this.warehouse.addItem(product, outputQty, Date.now());
-    this.enqueueMessage('Сырьё отправлено на переработку.', 'success');
+    const resultName = CONFIG.produce[product]?.name ?? product;
+    this.enqueueMessage(
+      `Переработано ${removed} ед. → получено ${outputQty} ед. (${resultName}).`,
+      'success'
+    );
     this.save();
     this.emitChange();
     return { success: true };
   }
 
   getState(now = Date.now()) {
-    const warehouseItems = this.warehouse.items.map((item) => {
-      const produce = CONFIG.produce[item.type] ?? { name: item.type, shelfLife: CONFIG.durations.day };
-      const remaining = item.remainingTime(now);
-      const percent = Math.max(0, Math.min(100, (remaining / produce.shelfLife) * 100));
-      return {
-        id: item.id,
+    const groupedWarehouse = new Map();
+    this.warehouse.items.forEach((item) => {
+      const produce = CONFIG.produce[item.type] ?? {
+        name: item.type,
+        shelfLife: CONFIG.durations.day,
+      };
+      const existing = groupedWarehouse.get(item.type) ?? {
         type: item.type,
         name: produce.name ?? item.type,
-        quantity: item.quantity,
-        expiresAt: item.expiresAt,
-        harvestedAt: item.harvestedAt,
+        icon: produce.icon ?? '📦',
+        quantity: 0,
+        shelfLife: produce.shelfLife ?? CONFIG.durations.day,
+        soonestExpiry: Number.POSITIVE_INFINITY,
+        ids: [],
+      };
+      existing.quantity += item.quantity;
+      existing.soonestExpiry = Math.min(existing.soonestExpiry, item.remainingTime(now));
+      existing.ids.push(item.id);
+      groupedWarehouse.set(item.type, existing);
+    });
+    const warehouseItems = Array.from(groupedWarehouse.values()).map((entry) => {
+      const remaining = Number.isFinite(entry.soonestExpiry)
+        ? entry.soonestExpiry
+        : entry.shelfLife;
+      const percent = entry.shelfLife
+        ? Math.max(0, Math.min(100, (remaining / entry.shelfLife) * 100))
+        : 100;
+      return {
+        type: entry.type,
+        name: entry.name,
+        icon: entry.icon,
+        quantity: entry.quantity,
         remaining,
         percent,
+        ids: entry.ids,
       };
     });
 
@@ -511,7 +553,8 @@ export class Game {
         .map((treeId) => this.trees.get(treeId))
         .filter(Boolean)
         .map((tree) => {
-          const produce = CONFIG.produce[tree.type] ?? {};
+          const crop = resolveCrop(tree.type);
+          const produce = CONFIG.produce[crop.produce] ?? {};
           let status = '';
           if (tree.level === 0) {
             status = 'Саженец набирает силу';
@@ -534,6 +577,7 @@ export class Game {
             autoHarvest: tree.autoHarvest,
             upgradeCost: tree.upgradeCost(),
             produceName: produce.name ?? 'Урожай',
+            icon: crop.icon ?? produce.icon ?? '🌳',
           };
         });
       return {
@@ -545,8 +589,18 @@ export class Game {
         autoHarvest: plot.autoHarvest,
         upgradeCost: plot.upgradeCost(),
         trees,
+        nextPlantCost: computePlantCost(plot),
       };
     });
+
+    const treeCatalog = Object.entries(CONFIG.crops).map(([type, crop]) => ({
+      type,
+      title: crop.title ?? type,
+      icon: crop.icon ?? '🌳',
+      produce: crop.produce,
+      produceName: CONFIG.produce[crop.produce]?.name ?? crop.produce ?? type,
+      seedCost: crop.seedCost ?? 800,
+    }));
 
     const state = {
       player: {
@@ -567,6 +621,7 @@ export class Game {
       },
       plots,
       nextPlotCost: this.getNextPlotCost(),
+      treeCatalog,
       messages: this.drainMessages(),
     };
     return state;
