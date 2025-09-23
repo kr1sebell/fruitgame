@@ -1,1193 +1,249 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <title>Фермерская долина</title>
-  <style>
-    :root {
-      --bg: #f7f3e9;
-      --accent: #7fb069;
-      --accent-dark: #52734d;
-      --text: #333;
-      --card-bg: #fff;
-      --border: #e2d6c4;
-      --warn: #d98324;
-    }
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      font-family: "Nunito", "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-    header {
-      background: linear-gradient(120deg, #8fc866, #5ea75e);
-      color: #fff;
-      padding: 24px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
-    }
-    header h1 {
-      margin: 0;
-      font-size: 28px;
-      letter-spacing: 0.03em;
-    }
-    header .subtitle {
-      margin-top: 4px;
-      font-size: 14px;
-      opacity: 0.85;
-    }
-    .app {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 24px 24px 80px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 20px;
-    }
-    .card {
-      background: var(--card-bg);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 10px 24px rgba(82, 115, 77, 0.12);
-      border: 1px solid var(--border);
-    }
-    .card h2 {
-      margin-top: 0;
-      font-size: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .profile-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-      margin-top: 16px;
-    }
-    .stat {
-      background: rgba(127, 176, 105, 0.1);
-      border-radius: 12px;
-      padding: 12px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .stat-label {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: rgba(51, 51, 51, 0.7);
-    }
-    .stat-value {
-      font-size: 18px;
-      font-weight: 700;
-    }
-    .button {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      padding: 8px 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-      box-shadow: 0 6px 12px rgba(127, 176, 105, 0.3);
-    }
-    .button:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 18px rgba(127, 176, 105, 0.26);
-    }
-    .button:disabled {
-      cursor: not-allowed;
-      opacity: 0.6;
-      box-shadow: none;
-      transform: none;
-    }
-    .button.secondary {
-      background: rgba(82, 115, 77, 0.18);
-      color: var(--accent-dark);
-      box-shadow: none;
-    }
-    .button.danger {
-      background: var(--warn);
-      box-shadow: 0 6px 12px rgba(217, 131, 36, 0.3);
-    }
-    .plots-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-    .plot-card {
-      border: 1px solid #d9ceb5;
-      border-radius: 16px;
-      padding: 16px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(242, 235, 220, 0.9));
-      position: relative;
-    }
-    .plot-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-    .plot-header .title {
-      font-size: 18px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .plot-header .title span.icon {
-      font-size: 24px;
-    }
-    .plot-info {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      font-size: 14px;
-      opacity: 0.85;
-    }
-    .tree-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 12px;
-      margin-top: 14px;
-    }
-    .tree-card {
-      background: rgba(255,255,255,0.95);
-      border-radius: 14px;
-      border: 1px solid rgba(127, 176, 105, 0.2);
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      position: relative;
-      min-height: 180px;
-    }
-    .tree-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .tree-icon {
-      font-size: 28px;
-    }
-    .tree-name {
-      font-weight: 700;
-      font-size: 16px;
-    }
-    .level-badge {
-      background: rgba(127, 176, 105, 0.15);
-      border-radius: 20px;
-      padding: 4px 10px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .progress-bar {
-      background: rgba(0,0,0,0.08);
-      border-radius: 8px;
-      height: 8px;
-      width: 100%;
-      overflow: hidden;
-    }
-    .progress-bar .fill {
-      height: 100%;
-      background: linear-gradient(120deg, #8fc866, #5ea75e);
-      width: 0;
-      transition: width 0.3s ease;
-    }
-    .tree-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: auto;
-    }
-    .auto-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      font-size: 11px;
-    }
-    .chip {
-      background: rgba(127,176,105,0.16);
-      color: var(--accent-dark);
-      padding: 4px 8px;
-      border-radius: 10px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .chip.off {
-      background: rgba(0,0,0,0.08);
-      color: rgba(51,51,51,0.6);
-    }
-    .plant-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 14px;
-    }
-    select {
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(0,0,0,0.1);
-      font-size: 14px;
-    }
-    .warehouse-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 16px;
-    }
-    .item-card {
-      border: 1px solid rgba(82,115,77,0.2);
-      border-radius: 12px;
-      padding: 12px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      background: rgba(255,255,255,0.95);
-    }
-    .item-info {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 14px;
-    }
-    .item-title {
-      font-weight: 700;
-      font-size: 16px;
-    }
-    .capacity-bar {
-      background: rgba(0,0,0,0.08);
-      border-radius: 10px;
-      height: 10px;
-      width: 100%;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-    .capacity-bar .fill {
-      height: 100%;
-      background: linear-gradient(120deg, #ffb347, #ffcc33);
-      width: 0;
-      transition: width 0.3s ease;
-    }
-    .factory-info {
-      font-size: 12px;
-      color: rgba(51, 51, 51, 0.7);
-    }
-    .empty-state {
-      padding: 14px;
-      border-radius: 12px;
-      background: rgba(0,0,0,0.05);
-      text-align: center;
-      font-size: 14px;
-      color: rgba(51, 51, 51, 0.7);
-    }
-    .inline {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .small {
-      font-size: 12px;
-    }
-    .reset-btn {
-      background: rgba(255,255,255,0.25);
-      border: 1px solid rgba(255,255,255,0.6);
-      padding: 8px 14px;
-      border-radius: 10px;
-      color: #fff;
-      cursor: pointer;
-      font-weight: 600;
-      transition: background 0.2s ease;
-    }
-    .reset-btn:hover {
-      background: rgba(255,255,255,0.35);
-    }
-    .notice {
-      font-size: 13px;
-      color: rgba(82, 115, 77, 0.9);
-      margin-top: 12px;
-    }
-    @media (max-width: 768px) {
-      header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-      }
-      .tree-list {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <div>
-      <h1>Фермерская долина</h1>
-      <div class="subtitle">Выращивайте деревья, собирайте урожай и развивайте ферму прямо в браузере</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orange Paradise — ферма</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Marck+Script&family=Open+Sans:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero-header">
+        <div class="hero-title">
+          <span class="logo-icon" aria-hidden="true">🍊</span>
+          <div>
+            <h1>Orange Paradise</h1>
+            <p class="tagline">Виртуальный цитрусовый рай</p>
+          </div>
+        </div>
+        <div class="player-counters">
+          <div class="counter">
+            <span class="counter-icon">💰</span>
+            <div class="counter-info">
+              <span class="counter-label">Баланс</span>
+              <span class="counter-value" data-bind="balance">0</span>
+            </div>
+          </div>
+          <div class="counter">
+            <span class="counter-icon">🌳</span>
+            <div class="counter-info">
+              <span class="counter-label">Деревья</span>
+              <span class="counter-value" data-bind="treeCount">0</span>
+            </div>
+          </div>
+          <div class="counter">
+            <span class="counter-icon">📦</span>
+            <div class="counter-info">
+              <span class="counter-label">Склад</span>
+              <span class="counter-value" data-bind="warehouseCapacity">0</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <nav class="primary-nav">
+        <a class="nav-link active" href="#" data-view="overview">Главная</a>
+        <a class="nav-link" href="#" data-view="warehouse">Мой склад</a>
+        <a class="nav-link" href="#" data-view="plots">Мои участки</a>
+        <a class="nav-link" href="#" data-view="profile">Профиль</a>
+        <span class="nav-link disabled">Конкурсы</span>
+        <span class="nav-link disabled">Статистика</span>
+        <span class="nav-link disabled">Чат</span>
+      </nav>
+
+      <div class="content-layout">
+        <aside class="side-menu">
+          <h2>Навигация</h2>
+          <ul>
+            <li>
+              <button class="side-link" data-view="overview">
+                <span class="icon">🏠</span>
+                <span>Главная панель</span>
+              </button>
+            </li>
+            <li>
+              <button class="side-link" data-view="warehouse">
+                <span class="icon">📦</span>
+                <span>Мой склад</span>
+              </button>
+            </li>
+            <li>
+              <button class="side-link" data-view="plots">
+                <span class="icon">🌾</span>
+                <span>Мои участки</span>
+              </button>
+            </li>
+            <li>
+              <button class="side-link" data-view="profile">
+                <span class="icon">🧑‍🌾</span>
+                <span>Профиль игрока</span>
+              </button>
+            </li>
+            <li class="muted">Скоро: достижения, промо, ярмарка</li>
+          </ul>
+        </aside>
+
+        <main class="main-content">
+          <section class="banner" data-view-panel="overview">
+            <h2>Добро пожаловать на ферму!</h2>
+            <p>
+              Следите за деревьями, заботьтесь о поливе, улучшайте участки и управляйте
+              складом — вся ферма в ваших руках. Прогресс автоматически сохраняется.
+            </p>
+            <div class="banner-actions">
+              <button class="btn primary" data-action="openPlots">Перейти к участкам</button>
+              <button class="btn" data-action="openWarehouse">Открыть склад</button>
+            </div>
+          </section>
+
+          <section class="panel" data-view-panel="warehouse" hidden>
+            <header class="panel-header">
+              <h2>Мой склад</h2>
+              <div class="panel-actions">
+                <button class="btn" data-action="upgradeWarehouse">Улучшить склад</button>
+                <span class="capacity-indicator">
+                  <span data-bind="warehouseUsage">0</span>
+                  <span class="separator">/</span>
+                  <span data-bind="warehouseCapacity">0</span>
+                </span>
+              </div>
+            </header>
+            <div class="warehouse-grid" data-bind="warehouseItems"></div>
+            <p class="muted" data-bind="warehouseHint"></p>
+          </section>
+
+          <section class="panel" data-view-panel="plots" hidden>
+            <header class="panel-header">
+              <h2>Мои участки</h2>
+              <div class="panel-actions">
+                <button class="btn" data-action="buyPlot">Приобрести участок</button>
+              </div>
+            </header>
+            <div class="plots-list" data-bind="plots"></div>
+          </section>
+
+          <section class="panel" data-view-panel="profile" hidden>
+            <header class="panel-header">
+              <h2>Профиль игрока</h2>
+            </header>
+            <div class="profile-grid">
+              <div class="profile-card">
+                <h3>Статистика</h3>
+                <ul>
+                  <li>Баланс: <strong data-bind="balance">0</strong></li>
+                  <li>Участков: <strong data-bind="plotCount">0</strong></li>
+                  <li>Деревьев: <strong data-bind="treeCount">0</strong></li>
+                  <li>Уровень склада: <strong data-bind="warehouseLevel">1</strong></li>
+                </ul>
+              </div>
+              <div class="profile-card">
+                <h3>Подсказки</h3>
+                <p>Включайте автополив и автосбор, чтобы не пропустить урожай.</p>
+                <p>
+                  Прокачивайте участки для увеличения количества деревьев и склад для хранения
+                  переработанной продукции.
+                </p>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <footer class="footer">
+        <p>Orange Paradise © 2024. Любовь к цитрусам — навсегда.</p>
+      </footer>
     </div>
-    <button class="reset-btn" id="resetProgress">Сбросить прогресс</button>
-  </header>
-  <div class="app">
-    <div class="grid">
-      <section class="card" id="profileCard">
-        <h2>👩‍🌾 Профиль</h2>
-        <div class="profile-stats" id="profileStats"></div>
-        <div class="notice">Совет: прокачивайте деревья и складывайте урожай на склад, чтобы продать его или отправить на переработку.</div>
+
+    <div class="toast" data-bind="toast" hidden></div>
+
+    <template id="warehouse-item-template">
+      <article class="warehouse-item">
+        <header>
+          <h3 data-field="title"></h3>
+          <span class="quantity" data-field="quantity"></span>
+        </header>
+        <div class="expiry-bar" data-field="expiryBar">
+          <div class="expiry-fill"></div>
+        </div>
+        <p class="muted" data-field="expiryText"></p>
+        <div class="item-actions">
+          <button class="btn small" data-action="sell">Продать</button>
+          <button class="btn small" data-action="process">Переработать</button>
+        </div>
+      </article>
+    </template>
+
+    <template id="plot-card-template">
+      <section class="plot-card">
+        <header class="plot-header">
+          <div>
+            <h3 data-field="title"></h3>
+            <p class="muted" data-field="capacity"></p>
+          </div>
+          <div class="plot-controls">
+            <button class="icon-button" data-action="togglePlotAutoWater" title="Автополив">
+              <span class="icon">💧</span>
+            </button>
+            <button class="icon-button" data-action="togglePlotAutoHarvest" title="Автосбор">
+              <span class="icon">🧺</span>
+            </button>
+          </div>
+        </header>
+        <div class="plot-actions">
+          <button class="btn small" data-action="upgradePlot">Улучшить участок</button>
+          <button class="btn small" data-action="plantTree">Посадить дерево</button>
+        </div>
+        <div class="trees-grid" data-field="trees"></div>
       </section>
-      <section class="card" id="warehouseCard">
-        <h2>📦 Склад</h2>
-        <div id="warehouseSummary"></div>
-        <div class="warehouse-list" id="warehouseItems"></div>
-      </section>
-      <section class="card" id="plotsCard">
-        <h2>🌿 Участки</h2>
-        <div class="plots-wrapper" id="plotsWrapper"></div>
-        <div style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
-          <button class="button" id="buyPlotBtn">Купить новый участок</button>
-        </div>
-      </section>
-    </div>
-  </div>
+    </template>
 
-  <script>
-    const STORAGE_KEY = 'farm_game_state_v1';
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const TREE_TYPES = [
-      {
-        id: 'apple',
-        name: 'Яблоня',
-        icon: '🍎',
-        description: 'Классическое плодовое дерево, любит частый уход.',
-        baseYield: 6,
-        rawProduct: 'apple'
-      },
-      {
-        id: 'pear',
-        name: 'Груша',
-        icon: '🍐',
-        description: 'Дерево с приятным ароматом, урожай чуть дороже.',
-        baseYield: 5,
-        rawProduct: 'pear'
-      },
-      {
-        id: 'plum',
-        name: 'Слива',
-        icon: '🍑',
-        description: 'Сливы хороши для варенья и компотов.',
-        baseYield: 7,
-        rawProduct: 'plum'
-      }
-    ];
-
-    const PRODUCTS = {
-      apple: {
-        name: 'Яблоки',
-        icon: '🍎',
-        sellPrice: 4,
-        storageHours: 48,
-        factory: {
-          productType: 'apple_jam',
-          ratio: 5
-        }
-      },
-      pear: {
-        name: 'Груши',
-        icon: '🍐',
-        sellPrice: 5,
-        storageHours: 48,
-        factory: {
-          productType: 'pear_juice',
-          ratio: 4
-        }
-      },
-      plum: {
-        name: 'Сливы',
-        icon: '🍑',
-        sellPrice: 6,
-        storageHours: 60,
-        factory: {
-          productType: 'plum_jam',
-          ratio: 4
-        }
-      },
-      apple_jam: {
-        name: 'Яблочное варенье',
-        icon: '🍯',
-        sellPrice: 22,
-        storageHours: 120
-      },
-      pear_juice: {
-        name: 'Грушевый сок',
-        icon: '🥤',
-        sellPrice: 24,
-        storageHours: 96
-      },
-      plum_jam: {
-        name: 'Сливовое варенье',
-        icon: '🍯',
-        sellPrice: 26,
-        storageHours: 132
-      }
-    };
-
-    const COST = {
-      plantTree: 80,
-      autoTreeWater: 15,
-      autoTreeHarvest: 20,
-      autoPlotWater: 35,
-      autoPlotHarvest: 45,
-      treeUpgradeBase: 90,
-      plotUpgradeBase: 220,
-      warehouseUpgradeBase: 260,
-      newPlotBase: 450
-    };
-
-    function defaultState() {
-      const now = Date.now();
-      const plotId = generatePlotId();
-      const treeId = generateTreeId();
-      return {
-        profile: {
-          name: 'Фермер',
-          balance: 600,
-          lastLogin: now
-        },
-        warehouse: {
-          level: 1,
-          items: []
-        },
-        plots: [
-          {
-            id: plotId,
-            level: 1,
-            autoWater: { active: false, nextCharge: null },
-            autoHarvest: { active: false, nextCharge: null },
-            trees: [
-              {
-                id: treeId,
-                type: 'apple',
-                level: 0,
-                growth: 0,
-                harvestReady: false,
-                autoWater: { active: false, nextCharge: null },
-                autoHarvest: { active: false, nextCharge: null },
-                lastWatered: null
-              }
-            ]
-          }
-        ]
-      };
-    }
-
-    function loadState() {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) {
-        const state = defaultState();
-        syncCountersFromState(state);
-        return state;
-      }
-      try {
-        const parsed = JSON.parse(stored);
-        ensureStateStructure(parsed);
-        syncCountersFromState(parsed);
-        return parsed;
-      } catch (e) {
-        console.warn('Ошибка загрузки состояния, используем новое', e);
-        const state = defaultState();
-        syncCountersFromState(state);
-        return state;
-      }
-    }
-
-    function ensureStateStructure(state) {
-      state.profile = state.profile || { name: 'Фермер', balance: 0, lastLogin: Date.now() };
-      state.warehouse = state.warehouse || { level: 1, items: [] };
-      state.warehouse.items = state.warehouse.items || [];
-      state.plots = state.plots || [];
-      state.plots.forEach(plot => {
-        plot.autoWater = plot.autoWater || { active: false, nextCharge: null };
-        plot.autoHarvest = plot.autoHarvest || { active: false, nextCharge: null };
-        plot.trees = plot.trees || [];
-        plot.trees.forEach(tree => {
-          tree.autoWater = tree.autoWater || { active: false, nextCharge: null };
-          tree.autoHarvest = tree.autoHarvest || { active: false, nextCharge: null };
-          tree.growth = tree.growth || 0;
-          tree.harvestReady = Boolean(tree.harvestReady);
-        });
-      });
-    }
-
-    function syncCountersFromState(state) {
-      window.__farmCounters = window.__farmCounters || { treeCounter: 0, plotCounter: 0, itemCounter: 0 };
-      state.plots.forEach(plot => {
-        const plotNum = parseInt((plot.id || 'plot-0').split('-')[1] || '0', 10);
-        window.__farmCounters.plotCounter = Math.max(window.__farmCounters.plotCounter || 0, plotNum);
-        plot.trees.forEach(tree => {
-          const treeNum = parseInt((tree.id || 'tree-0').split('-')[1] || '0', 10);
-          window.__farmCounters.treeCounter = Math.max(window.__farmCounters.treeCounter || 0, treeNum);
-        });
-      });
-      state.warehouse.items.forEach(item => {
-        const itemNum = parseInt((item.id || 'item-0').split('-')[1] || '0', 10);
-        window.__farmCounters.itemCounter = Math.max(window.__farmCounters.itemCounter || 0, itemNum);
-      });
-    }
-
-    function generateTreeId() {
-      window.__farmCounters = window.__farmCounters || {};
-      window.__farmCounters.treeCounter = (window.__farmCounters.treeCounter || 0) + 1;
-      return `tree-${window.__farmCounters.treeCounter}`;
-    }
-
-    function generatePlotId() {
-      window.__farmCounters = window.__farmCounters || {};
-      window.__farmCounters.plotCounter = (window.__farmCounters.plotCounter || 0) + 1;
-      return `plot-${window.__farmCounters.plotCounter}`;
-    }
-
-    function generateItemId() {
-      window.__farmCounters = window.__farmCounters || {};
-      window.__farmCounters.itemCounter = (window.__farmCounters.itemCounter || 0) + 1;
-      return `item-${window.__farmCounters.itemCounter}`;
-    }
-
-    const state = loadState();
-
-    function saveState() {
-      state.profile.lastLogin = Date.now();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
-
-    function getPlotCapacity(plot) {
-      return 1 + plot.level * 2;
-    }
-
-    function getWarehouseCapacity(warehouse) {
-      return 120 + (warehouse.level - 1) * 120;
-    }
-
-    function getTotalWarehouseUsage(warehouse) {
-      return warehouse.items.reduce((sum, item) => sum + item.amount, 0);
-    }
-
-    function getPlotUpgradeCost(plot) {
-      return COST.plotUpgradeBase * plot.level;
-    }
-
-    function getWarehouseUpgradeCost(warehouse) {
-      return COST.warehouseUpgradeBase * warehouse.level;
-    }
-
-    function getTreeUpgradeCost(tree) {
-      return COST.treeUpgradeBase * (tree.level + 1);
-    }
-
-    function getNewPlotCost() {
-      return COST.newPlotBase * (state.plots.length + 1);
-    }
-
-    function getTreeType(typeId) {
-      return TREE_TYPES.find(t => t.id === typeId) || TREE_TYPES[0];
-    }
-
-    function processTimeEvents() {
-      const now = Date.now();
-      state.warehouse.items = state.warehouse.items.filter(item => {
-        if (!item.expiresAt) return true;
-        return item.expiresAt > now;
-      });
-      state.plots.forEach(plot => {
-        handleServiceCharge(plot.autoWater, COST.autoPlotWater);
-        handleServiceCharge(plot.autoHarvest, COST.autoPlotHarvest);
-        plot.trees.forEach(tree => {
-          handleServiceCharge(tree.autoWater, COST.autoTreeWater);
-          handleServiceCharge(tree.autoHarvest, COST.autoTreeHarvest);
-        });
-      });
-    }
-
-    function handleServiceCharge(service, cost) {
-      if (!service.active) return;
-      if (!service.nextCharge) {
-        service.nextCharge = Date.now() + DAY_MS;
-        return;
-      }
-      const now = Date.now();
-      while (service.active && service.nextCharge && now >= service.nextCharge) {
-        if (state.profile.balance >= cost) {
-          state.profile.balance -= cost;
-          service.nextCharge += DAY_MS;
-        } else {
-          service.active = false;
-          service.nextCharge = null;
-          break;
-        }
-      }
-    }
-
-    function processAutoActions() {
-      let changed = false;
-      state.plots.forEach(plot => {
-        plot.trees.forEach(tree => {
-          if (plot.autoWater.active || tree.autoWater.active) {
-            const watered = waterTree(plot.id, tree.id, true, true);
-            if (watered) changed = true;
-          }
-          if (plot.autoHarvest.active || tree.autoHarvest.active) {
-            const harvested = collectHarvest(plot.id, tree.id, true, true);
-            if (harvested) changed = true;
-          }
-        });
-      });
-      return changed;
-    }
-
-    function waterTree(plotId, treeId, isAuto = false, skipPersist = false) {
-      const plot = state.plots.find(p => p.id === plotId);
-      if (!plot) return;
-      const tree = plot.trees.find(t => t.id === treeId);
-      if (!tree) return;
-      if (tree.harvestReady) {
-        if (!isAuto) {
-          alert('Дерево готово к сбору урожая. Сначала соберите урожай.');
-        }
-        return false;
-      }
-      const increment = 25 + Math.max(0, tree.level - 1) * 5;
-      tree.growth = Math.min(100, tree.growth + increment);
-      tree.lastWatered = Date.now();
-      if (tree.growth >= 100) {
-        tree.harvestReady = true;
-        tree.growth = 100;
-        if (tree.level === 0) {
-          tree.level = 1;
-        }
-      }
-      if (!isAuto) {
-        notify(`Вы полили дерево «${getTreeType(tree.type).name}». Прогресс роста: ${tree.growth}%`);
-      }
-      if (!skipPersist) {
-        persistAndRender(isAuto);
-      }
-      return true;
-    }
-
-    function collectHarvest(plotId, treeId, isAuto = false, skipPersist = false) {
-      const plot = state.plots.find(p => p.id === plotId);
-      if (!plot) return;
-      const tree = plot.trees.find(t => t.id === treeId);
-      if (!tree) return;
-      if (!tree.harvestReady) {
-        if (!isAuto) alert('Урожай ещё не созрел.');
-        return false;
-      }
-      if (tree.level < 1) {
-        if (!isAuto) alert('Дерево недостаточно развито для сбора урожая.');
-        return false;
-      }
-      const treeType = getTreeType(tree.type);
-      const amount = Math.round(treeType.baseYield * (1 + (tree.level - 1) * 0.35));
-      const productId = treeType.rawProduct;
-      const product = PRODUCTS[productId];
-      const success = addToWarehouse({
-        type: productId,
-        name: product.name,
-        amount,
-        storageHours: product.storageHours,
-        icon: product.icon
-      });
-      if (!success) {
-        if (!isAuto) alert('На складе недостаточно места для урожая!');
-        return false;
-      }
-      tree.harvestReady = false;
-      tree.growth = 0;
-      if (!isAuto) {
-        notify(`Собран урожай: ${product.icon || ''} ${amount} × ${product.name}`);
-      }
-      if (!skipPersist) {
-        persistAndRender(isAuto);
-      }
-      return true;
-    }
-
-    function addToWarehouse({ type, name, amount, storageHours, icon }) {
-      const capacity = getWarehouseCapacity(state.warehouse);
-      const used = getTotalWarehouseUsage(state.warehouse);
-      if (used + amount > capacity) {
-        return false;
-      }
-      const expiresAt = Date.now() + storageHours * 60 * 60 * 1000;
-      state.warehouse.items.push({
-        id: generateItemId(),
-        type,
-        name,
-        amount,
-        createdAt: Date.now(),
-        expiresAt,
-        icon: icon || '📦'
-      });
-      return true;
-    }
-
-    function plantTree(plotId, typeId) {
-      const plot = state.plots.find(p => p.id === plotId);
-      if (!plot) return;
-      const capacity = getPlotCapacity(plot);
-      if (plot.trees.length >= capacity) {
-        alert('Участок заполнен. Улучшите участок или освободите место.');
-        return;
-      }
-      if (state.profile.balance < COST.plantTree) {
-        alert('Недостаточно валюты для покупки саженца.');
-        return;
-      }
-      state.profile.balance -= COST.plantTree;
-      const treeType = getTreeType(typeId);
-      plot.trees.push({
-        id: generateTreeId(),
-        type: treeType.id,
-        level: 0,
-        growth: 0,
-        harvestReady: false,
-        autoWater: { active: false, nextCharge: null },
-        autoHarvest: { active: false, nextCharge: null },
-        lastWatered: null
-      });
-      notify(`Посажено новое дерево: ${treeType.icon} ${treeType.name}`);
-      persistAndRender();
-    }
-
-    function toggleTreeService(plotId, treeId, serviceType) {
-      const plot = state.plots.find(p => p.id === plotId);
-      if (!plot) return;
-      const tree = plot.trees.find(t => t.id === treeId);
-      if (!tree) return;
-      const service = serviceType === 'water' ? tree.autoWater : tree.autoHarvest;
-      const cost = serviceType === 'water' ? COST.autoTreeWater : COST.autoTreeHarvest;
-      if (toggleService(service, cost, serviceType === 'water' ? 'Автополив' : 'Автосбор')) {
-        persistAndRender();
-      }
-    }
-
-    function togglePlotService(plotId, serviceType) {
-      const plot = state.plots.find(p => p.id === plotId);
-      if (!plot) return;
-      const service = serviceType === 'water' ? plot.autoWater : plot.autoHarvest;
-      const cost = serviceType === 'water' ? COST.autoPlotWater : COST.autoPlotHarvest;
-      if (toggleService(service, cost, serviceType === 'water' ? 'Автополив участка' : 'Автосбор участка')) {
-        persistAndRender();
-      }
-    }
-
-    function toggleService(service, cost, label) {
-      if (service.active) {
-        service.active = false;
-        service.nextCharge = null;
-        notify(`${label} выключен.`);
-        return true;
-      }
-      if (state.profile.balance < cost) {
-        alert('Недостаточно валюты для активации услуги.');
-        return false;
-      }
-      state.profile.balance -= cost;
-      service.active = true;
-      service.nextCharge = Date.now() + DAY_MS;
-      notify(`${label} активирован. Оплата за сутки списана (${cost}).`);
-      return true;
-    }
-
-    function upgradeTree(plotId, treeId) {
-      const plot = state.plots.find(p => p.id === plotId);
-      if (!plot) return;
-      const tree = plot.trees.find(t => t.id === treeId);
-      if (!tree) return;
-      const cost = getTreeUpgradeCost(tree);
-      if (state.profile.balance < cost) {
-        alert('Недостаточно валюты для улучшения дерева.');
-        return;
-      }
-      state.profile.balance -= cost;
-      tree.level += 1;
-      notify(`Дерево улучшено до ${tree.level} уровня.`);
-      persistAndRender();
-    }
-
-    function upgradePlot(plotId) {
-      const plot = state.plots.find(p => p.id === plotId);
-      if (!plot) return;
-      const cost = getPlotUpgradeCost(plot);
-      if (state.profile.balance < cost) {
-        alert('Недостаточно валюты для улучшения участка.');
-        return;
-      }
-      state.profile.balance -= cost;
-      plot.level += 1;
-      notify(`Участок ${plot.id} улучшен до ${plot.level} уровня.`);
-      persistAndRender();
-    }
-
-    function upgradeWarehouse() {
-      const cost = getWarehouseUpgradeCost(state.warehouse);
-      if (state.profile.balance < cost) {
-        alert('Недостаточно валюты для улучшения склада.');
-        return;
-      }
-      state.profile.balance -= cost;
-      state.warehouse.level += 1;
-      notify(`Склад улучшен до ${state.warehouse.level} уровня.`);
-      persistAndRender();
-    }
-
-    function buyPlot() {
-      const cost = getNewPlotCost();
-      if (state.profile.balance < cost) {
-        alert('Недостаточно валюты для покупки участка.');
-        return;
-      }
-      state.profile.balance -= cost;
-      state.plots.push({
-        id: generatePlotId(),
-        level: 1,
-        autoWater: { active: false, nextCharge: null },
-        autoHarvest: { active: false, nextCharge: null },
-        trees: []
-      });
-      notify('Куплен новый участок!');
-      persistAndRender();
-    }
-
-    function sellProduce(itemId) {
-      const item = state.warehouse.items.find(i => i.id === itemId);
-      if (!item) return;
-      const amountStr = prompt(`Введите количество для продажи (доступно ${item.amount}):`, item.amount);
-      if (amountStr === null) return;
-      const amount = Math.min(item.amount, Math.max(0, Number(amountStr)));
-      if (!amount) return;
-      const product = PRODUCTS[item.type];
-      const income = product.sellPrice * amount;
-      state.profile.balance += income;
-      item.amount -= amount;
-      if (item.amount <= 0) {
-        state.warehouse.items = state.warehouse.items.filter(i => i.id !== item.id);
-      }
-      notify(`Продано ${amount} × ${product.name}. Получено ${income} монет.`);
-      persistAndRender();
-    }
-
-    function processProduce(itemId) {
-      const item = state.warehouse.items.find(i => i.id === itemId);
-      if (!item) return;
-      const product = PRODUCTS[item.type];
-      if (!product.factory) {
-        alert('Этот товар нельзя переработать.');
-        return;
-      }
-      const amountStr = prompt(`Сколько единиц отправить на переработку? (кратно ${product.factory.ratio})`, product.factory.ratio);
-      if (amountStr === null) return;
-      let amount = Math.min(item.amount, Math.max(0, Number(amountStr)));
-      if (!amount) return;
-      const ratio = product.factory.ratio;
-      const produced = Math.floor(amount / ratio);
-      if (produced <= 0) {
-        alert(`Нужно минимум ${ratio} единиц сырья.`);
-        return;
-      }
-      amount = produced * ratio;
-      const processedProduct = PRODUCTS[product.factory.productType];
-      if (!processedProduct) {
-        alert('Рецепт переработки недоступен.');
-        return;
-      }
-      const success = addToWarehouse({
-        type: product.factory.productType,
-        name: processedProduct.name,
-        amount: produced,
-        storageHours: processedProduct.storageHours,
-        icon: processedProduct.icon
-      });
-      if (!success) {
-        alert('Недостаточно места на складе для готового продукта.');
-        return;
-      }
-      item.amount -= amount;
-      if (item.amount <= 0) {
-        state.warehouse.items = state.warehouse.items.filter(i => i.id !== item.id);
-      }
-      notify(`Отправлено ${amount} × ${product.name} и получено ${produced} × ${processedProduct.name}.`);
-      persistAndRender();
-    }
-
-    function formatBalance(value) {
-      return `${value.toLocaleString('ru-RU')} монет`;
-    }
-
-    function formatTimeRemaining(timestamp) {
-      if (!timestamp) return '—';
-      const diff = timestamp - Date.now();
-      if (diff <= 0) return 'Просрочено';
-      const hours = Math.floor(diff / (60 * 60 * 1000));
-      const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
-      if (hours <= 0) return `${minutes} мин`;
-      return `${hours} ч ${minutes} мин`;
-    }
-
-    function notify(message) {
-      const banner = document.createElement('div');
-      banner.textContent = message;
-      banner.style.position = 'fixed';
-      banner.style.bottom = '24px';
-      banner.style.right = '24px';
-      banner.style.background = 'rgba(127, 176, 105, 0.95)';
-      banner.style.color = '#fff';
-      banner.style.padding = '12px 18px';
-      banner.style.borderRadius = '12px';
-      banner.style.boxShadow = '0 12px 24px rgba(82,115,77,0.35)';
-      banner.style.zIndex = '999';
-      banner.style.fontWeight = '600';
-      document.body.appendChild(banner);
-      setTimeout(() => {
-        banner.style.opacity = '0';
-        banner.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-        banner.style.transform = 'translateY(10px)';
-        setTimeout(() => banner.remove(), 400);
-      }, 1600);
-    }
-
-    function persistAndRender(isAuto = false) {
-      processTimeEvents();
-      if (!isAuto) {
-        processAutoActions();
-      }
-      saveState();
-      render();
-    }
-
-    function renderProfile() {
-      const statsContainer = document.getElementById('profileStats');
-      const totalTrees = state.plots.reduce((sum, plot) => sum + plot.trees.length, 0);
-      const readyTrees = state.plots.reduce((sum, plot) => sum + plot.trees.filter(t => t.harvestReady).length, 0);
-      statsContainer.innerHTML = `
-        <div class="stat">
-          <div class="stat-label">Баланс</div>
-          <div class="stat-value">${formatBalance(state.profile.balance)}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Участки</div>
-          <div class="stat-value">${state.plots.length}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Деревья</div>
-          <div class="stat-value">${totalTrees}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Урожай готов</div>
-          <div class="stat-value">${readyTrees}</div>
-        </div>
-      `;
-    }
-
-    function renderWarehouse() {
-      const summary = document.getElementById('warehouseSummary');
-      const capacity = getWarehouseCapacity(state.warehouse);
-      const used = getTotalWarehouseUsage(state.warehouse);
-      const usagePercent = Math.min(100, Math.round((used / capacity) * 100));
-      summary.innerHTML = `
-        <div><strong>Уровень склада:</strong> ${state.warehouse.level}</div>
-        <div><strong>Вместимость:</strong> ${used} / ${capacity}</div>
-        <div class="capacity-bar"><div class="fill" style="width:${usagePercent}%"></div></div>
-        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="button" id="upgradeWarehouseBtn">Улучшить склад (${getWarehouseUpgradeCost(state.warehouse)})</button>
-        </div>
-      `;
-      const itemsContainer = document.getElementById('warehouseItems');
-      if (!state.warehouse.items.length) {
-        itemsContainer.innerHTML = '<div class="empty-state">Склад пуст. Соберите урожай, чтобы заполнить его.</div>';
-        return;
-      }
-      itemsContainer.innerHTML = state.warehouse.items.map(item => {
-        const product = PRODUCTS[item.type] || { icon: '📦', name: item.name, factory: null };
-        const factoryProduct = product.factory ? PRODUCTS[product.factory.productType] : null;
-        const factoryText = product.factory && factoryProduct
-          ? `Можно переработать: ${product.factory.ratio} → ${factoryProduct.name}`
-          : 'Переработка недоступна';
-        return `
-          <div class="item-card">
-            <div class="item-info">
-              <div class="item-title">${product.icon || '📦'} ${item.name}</div>
-              <div>Количество: <strong>${item.amount}</strong></div>
-              <div>Срок хранения: ${formatTimeRemaining(item.expiresAt)}</div>
-              <div class="factory-info">${factoryText}</div>
-            </div>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <button class="button secondary" data-action="sell" data-id="${item.id}">Продать</button>
-              ${product.factory && factoryProduct ? `<button class="button" data-action="process" data-id="${item.id}">Переработать</button>` : ''}
-            </div>
+    <template id="tree-card-template">
+      <article class="tree-card">
+        <header>
+          <div>
+            <h4 data-field="title"></h4>
+            <p class="muted" data-field="status"></p>
           </div>
-        `;
-      }).join('');
-      itemsContainer.querySelectorAll('button[data-action="sell"]').forEach(btn => {
-        btn.addEventListener('click', () => sellProduce(btn.dataset.id));
-      });
-      itemsContainer.querySelectorAll('button[data-action="process"]').forEach(btn => {
-        btn.addEventListener('click', () => processProduce(btn.dataset.id));
-      });
-    }
-
-    function renderPlots() {
-      const wrapper = document.getElementById('plotsWrapper');
-      if (!state.plots.length) {
-        wrapper.innerHTML = '<div class="empty-state">У вас пока нет участков. Купите участок, чтобы начать фермерство.</div>';
-        return;
-      }
-      wrapper.innerHTML = state.plots.map(plot => {
-        const capacity = getPlotCapacity(plot);
-        const autoWaterChip = `<span class="chip ${plot.autoWater.active ? '' : 'off'}">💧 Авто: ${plot.autoWater.active ? 'Вкл' : 'Выкл'}</span>`;
-        const autoHarvestChip = `<span class="chip ${plot.autoHarvest.active ? '' : 'off'}">🧺 Авто: ${plot.autoHarvest.active ? 'Вкл' : 'Выкл'}</span>`;
-        return `
-          <div class="plot-card" data-plot="${plot.id}">
-            <div class="plot-header">
-              <div class="title"><span class="icon">🏡</span>Участок ${plot.id}</div>
-              <div class="level-badge">Уровень ${plot.level}</div>
-            </div>
-            <div class="plot-info">
-              <div>Деревьев: ${plot.trees.length} / ${capacity}</div>
-              <div class="auto-chips">${autoWaterChip} ${autoHarvestChip}</div>
-            </div>
-            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="button secondary" data-action="upgrade-plot" data-plot="${plot.id}">Улучшить участок (${getPlotUpgradeCost(plot)})</button>
-              <button class="button secondary" data-action="plot-autowater" data-plot="${plot.id}">${plot.autoWater.active ? 'Выключить автополив' : `Включить автополив (${COST.autoPlotWater})`}</button>
-              <button class="button secondary" data-action="plot-autoharvest" data-plot="${plot.id}">${plot.autoHarvest.active ? 'Выключить автосбор' : `Включить автосбор (${COST.autoPlotHarvest})`}</button>
-            </div>
-            <div class="tree-list">
-              ${plot.trees.length ? plot.trees.map(tree => renderTree(plot, tree)).join('') : '<div class="empty-state" style="grid-column:1/-1">Деревья отсутствуют. Посадите саженец.</div>'}
-            </div>
-            <div class="plant-controls">
-              <select data-plant-select="${plot.id}">
-                ${TREE_TYPES.map(type => `<option value="${type.id}">${type.icon} ${type.name}</option>`).join('')}
-              </select>
-              <button class="button" data-action="plant" data-plot="${plot.id}">Посадить саженец (${COST.plantTree})</button>
-            </div>
+          <div class="tree-controls">
+            <button class="icon-button" data-action="toggleTreeAutoWater" title="Автополив">
+              <span class="icon">💧</span>
+            </button>
+            <button class="icon-button" data-action="toggleTreeAutoHarvest" title="Автосбор">
+              <span class="icon">🧺</span>
+            </button>
           </div>
-        `;
-      }).join('');
-
-      wrapper.querySelectorAll('button[data-action="upgrade-plot"]').forEach(btn => {
-        btn.addEventListener('click', () => upgradePlot(btn.dataset.plot));
-      });
-      wrapper.querySelectorAll('button[data-action="plot-autowater"]').forEach(btn => {
-        btn.addEventListener('click', () => togglePlotService(btn.dataset.plot, 'water'));
-      });
-      wrapper.querySelectorAll('button[data-action="plot-autoharvest"]').forEach(btn => {
-        btn.addEventListener('click', () => togglePlotService(btn.dataset.plot, 'harvest'));
-      });
-      wrapper.querySelectorAll('button[data-action="plant"]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const select = wrapper.querySelector(`select[data-plant-select="${btn.dataset.plot}"]`);
-          const typeId = select ? select.value : TREE_TYPES[0].id;
-          plantTree(btn.dataset.plot, typeId);
-        });
-      });
-      wrapper.querySelectorAll('.tree-card button').forEach(btn => {
-        const action = btn.dataset.action;
-        const plotId = btn.dataset.plot;
-        const treeId = btn.dataset.tree;
-        if (!action || !plotId || !treeId) return;
-        if (action === 'water') {
-          btn.addEventListener('click', () => waterTree(plotId, treeId));
-        }
-        if (action === 'collect') {
-          btn.addEventListener('click', () => collectHarvest(plotId, treeId));
-        }
-        if (action === 'upgrade-tree') {
-          btn.addEventListener('click', () => upgradeTree(plotId, treeId));
-        }
-        if (action === 'auto-water') {
-          btn.addEventListener('click', () => toggleTreeService(plotId, treeId, 'water'));
-        }
-        if (action === 'auto-harvest') {
-          btn.addEventListener('click', () => toggleTreeService(plotId, treeId, 'harvest'));
-        }
-      });
-    }
-
-    function renderTree(plot, tree) {
-      const treeType = getTreeType(tree.type);
-      const progress = tree.harvestReady ? 100 : tree.growth;
-      const status = tree.harvestReady ? '<span class="chip">🧺 Урожай готов</span>' : `<span class="chip off">${tree.growth}% роста</span>`;
-      return `
-        <div class="tree-card">
-          <div class="tree-header">
-            <div class="tree-icon">${tree.harvestReady ? '🌳' : '🌱'}</div>
-            <div>
-              <div class="tree-name">${treeType.icon} ${treeType.name}</div>
-              <div class="small">${treeType.description}</div>
-            </div>
-            <div class="level-badge">Ур. ${tree.level}</div>
+        </header>
+        <div class="progress-group">
+          <div class="progress-label">
+            <span>Полив</span>
+            <button class="link" data-action="waterTree">Полить</button>
           </div>
-          <div>${status}</div>
-          <div class="progress-bar"><div class="fill" style="width:${progress}%"></div></div>
-          <div class="auto-chips">
-            <span class="chip ${tree.autoWater.active ? '' : 'off'}">💧 ${tree.autoWater.active ? 'Автополив' : 'Ручной'}</span>
-            <span class="chip ${tree.autoHarvest.active ? '' : 'off'}">🧺 ${tree.autoHarvest.active ? 'Автосбор' : 'Ручной'}</span>
-          </div>
-          <div class="tree-actions">
-            <button class="button secondary" data-action="water" data-plot="${plot.id}" data-tree="${tree.id}" ${tree.harvestReady ? 'disabled' : ''}>Полить</button>
-            <button class="button" data-action="collect" data-plot="${plot.id}" data-tree="${tree.id}" ${tree.harvestReady ? '' : 'disabled'}>Собрать урожай</button>
-            <button class="button secondary" data-action="upgrade-tree" data-plot="${plot.id}" data-tree="${tree.id}">Улучшить (${getTreeUpgradeCost(tree)})</button>
-            <button class="button secondary" data-action="auto-water" data-plot="${plot.id}" data-tree="${tree.id}">${tree.autoWater.active ? 'Выключить автополив' : `Автополив (${COST.autoTreeWater})`}</button>
-            <button class="button secondary" data-action="auto-harvest" data-plot="${plot.id}" data-tree="${tree.id}">${tree.autoHarvest.active ? 'Выключить автосбор' : `Автосбор (${COST.autoTreeHarvest})`}</button>
+          <div class="progress-bar hydration" data-field="hydrationBar">
+            <div class="progress-fill"></div>
           </div>
         </div>
-      `;
-    }
+        <div class="progress-group">
+          <div class="progress-label">
+            <span>Созревание</span>
+            <button class="link" data-action="harvestTree">Собрать</button>
+          </div>
+          <div class="progress-bar growth" data-field="growthBar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+        <div class="tree-footer">
+          <button class="btn small" data-action="upgradeTree">Улучшить дерево</button>
+          <span class="muted" data-field="nextYield"></span>
+        </div>
+      </article>
+    </template>
 
-    function render() {
-      renderProfile();
-      renderWarehouse();
-      renderPlots();
-      document.getElementById('buyPlotBtn').textContent = `Купить новый участок (${getNewPlotCost()})`;
-    }
-
-    document.getElementById('buyPlotBtn').addEventListener('click', buyPlot);
-
-    document.getElementById('resetProgress').addEventListener('click', () => {
-      if (confirm('Точно сбросить прогресс? Это действие необратимо.')) {
-        localStorage.removeItem(STORAGE_KEY);
-        location.reload();
-      }
-    });
-
-    function init() {
-      processTimeEvents();
-      processAutoActions();
-      render();
-      document.getElementById('warehouseSummary').addEventListener('click', event => {
-        if (event.target && event.target.id === 'upgradeWarehouseBtn') {
-          upgradeWarehouse();
-        }
-      });
-    }
-
-    init();
-    setInterval(() => {
-      processTimeEvents();
-      processAutoActions();
-      saveState();
-      render();
-    }, 10000);
-  </script>
-</body>
+    <script type="module" src="js/main.js"></script>
+  </body>
 </html>
