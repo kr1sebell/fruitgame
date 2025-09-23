@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Orange Paradise — ферма</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Marck+Script&family=Open+Sans:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero-header">
+        <div class="hero-title">
+          <span class="logo-icon" aria-hidden="true">🍊</span>
+          <div>
+            <h1>Orange Paradise</h1>
+            <p class="tagline">Виртуальный цитрусовый рай</p>
+          </div>
+        </div>
+        <div class="player-counters">
+          <div class="counter">
+            <span class="counter-icon">💰</span>
+            <div class="counter-info">
+              <span class="counter-label">Баланс</span>
+              <span class="counter-value" data-bind="balance">0</span>
+            </div>
+          </div>
+          <div class="counter">
+            <span class="counter-icon">🌳</span>
+            <div class="counter-info">
+              <span class="counter-label">Деревья</span>
+              <span class="counter-value" data-bind="treeCount">0</span>
+            </div>
+          </div>
+          <div class="counter">
+            <span class="counter-icon">📦</span>
+            <div class="counter-info">
+              <span class="counter-label">Склад</span>
+              <span class="counter-value" data-bind="warehouseCapacity">0</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <nav class="primary-nav">
+        <a class="nav-link active" href="#" data-view="overview">Главная</a>
+        <a class="nav-link" href="#" data-view="warehouse">Мой склад</a>
+        <a class="nav-link" href="#" data-view="plots">Мои участки</a>
+        <a class="nav-link" href="#" data-view="profile">Профиль</a>
+        <span class="nav-link disabled">Конкурсы</span>
+        <span class="nav-link disabled">Статистика</span>
+        <span class="nav-link disabled">Чат</span>
+      </nav>
+
+      <div class="content-layout">
+        <aside class="side-menu">
+          <h2>Навигация</h2>
+          <ul>
+            <li>
+              <button class="side-link" data-view="overview">
+                <span class="icon">🏠</span>
+                <span>Главная панель</span>
+              </button>
+            </li>
+            <li>
+              <button class="side-link" data-view="warehouse">
+                <span class="icon">📦</span>
+                <span>Мой склад</span>
+              </button>
+            </li>
+            <li>
+              <button class="side-link" data-view="plots">
+                <span class="icon">🌾</span>
+                <span>Мои участки</span>
+              </button>
+            </li>
+            <li>
+              <button class="side-link" data-view="profile">
+                <span class="icon">🧑‍🌾</span>
+                <span>Профиль игрока</span>
+              </button>
+            </li>
+            <li class="muted">Скоро: достижения, промо, ярмарка</li>
+          </ul>
+        </aside>
+
+        <main class="main-content">
+          <section class="banner" data-view-panel="overview">
+            <h2>Добро пожаловать на ферму!</h2>
+            <p>
+              Следите за деревьями, заботьтесь о поливе, улучшайте участки и управляйте
+              складом — вся ферма в ваших руках. Прогресс автоматически сохраняется.
+            </p>
+            <div class="banner-actions">
+              <button class="btn primary" data-action="openPlots">Перейти к участкам</button>
+              <button class="btn" data-action="openWarehouse">Открыть склад</button>
+            </div>
+          </section>
+
+          <section class="panel" data-view-panel="warehouse" hidden>
+            <header class="panel-header">
+              <h2>Мой склад</h2>
+              <div class="panel-actions">
+                <button class="btn" data-action="upgradeWarehouse">Улучшить склад</button>
+                <span class="capacity-indicator">
+                  <span data-bind="warehouseUsage">0</span>
+                  <span class="separator">/</span>
+                  <span data-bind="warehouseCapacity">0</span>
+                </span>
+              </div>
+            </header>
+            <div class="warehouse-grid" data-bind="warehouseItems"></div>
+            <p class="muted" data-bind="warehouseHint"></p>
+          </section>
+
+          <section class="panel" data-view-panel="plots" hidden>
+            <header class="panel-header">
+              <h2>Мои участки</h2>
+              <div class="panel-actions">
+                <button class="btn" data-action="buyPlot">Приобрести участок</button>
+              </div>
+            </header>
+            <div class="plots-browser">
+              <div class="plots-grid" data-bind="plots"></div>
+              <aside class="plot-detail" data-bind="plotDetail" hidden>
+                <header class="plot-detail-header">
+                  <div>
+                    <h3 data-field="plotTitle"></h3>
+                    <p class="muted" data-field="plotSubtitle"></p>
+                  </div>
+                  <div class="plot-controls">
+                    <button class="icon-button" data-action="togglePlotAutoWater" title="Автополив">
+                      <span class="icon">💧</span>
+                    </button>
+                    <button class="icon-button" data-action="togglePlotAutoHarvest" title="Автосбор">
+                      <span class="icon">🧺</span>
+                    </button>
+                  </div>
+                </header>
+                <div class="plot-detail-body">
+                  <div class="plot-stats">
+                    <p>Вместимость: <strong data-field="plotCapacity"></strong></p>
+                    <p class="muted" data-field="plotHint"></p>
+                  </div>
+                  <div class="plot-actions">
+                    <div class="plant-control">
+                      <label class="plant-select">
+                        <span>Выберите дерево</span>
+                        <select data-action="chooseTreeType"></select>
+                      </label>
+                      <button class="btn small primary" data-action="plantTree">Посадить</button>
+                    </div>
+                    <button class="btn small" data-action="upgradePlot">Улучшить участок</button>
+                  </div>
+                  <div class="trees-grid" data-bind="plotTrees"></div>
+                </div>
+              </aside>
+            </div>
+          </section>
+
+          <section class="panel" data-view-panel="profile" hidden>
+            <header class="panel-header">
+              <h2>Профиль игрока</h2>
+            </header>
+            <div class="profile-grid">
+              <div class="profile-card">
+                <h3>Статистика</h3>
+                <ul>
+                  <li>Баланс: <strong data-bind="balance">0</strong></li>
+                  <li>Участков: <strong data-bind="plotCount">0</strong></li>
+                  <li>Деревьев: <strong data-bind="treeCount">0</strong></li>
+                  <li>Уровень склада: <strong data-bind="warehouseLevel">1</strong></li>
+                </ul>
+              </div>
+              <div class="profile-card">
+                <h3>Подсказки</h3>
+                <p>Включайте автополив и автосбор, чтобы не пропустить урожай.</p>
+                <p>
+                  Прокачивайте участки для увеличения количества деревьев и склад для хранения
+                  переработанной продукции.
+                </p>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <footer class="footer">
+        <p>Orange Paradise © 2024. Любовь к цитрусам — навсегда.</p>
+      </footer>
+    </div>
+
+    <div class="toast" data-bind="toast" hidden></div>
+
+    <template id="warehouse-item-template">
+      <article class="warehouse-item">
+        <div class="card-illustration" data-field="art"></div>
+        <header>
+          <h3 data-field="title"></h3>
+          <span class="quantity" data-field="quantity"></span>
+        </header>
+        <div class="expiry-bar" data-field="expiryBar">
+          <div class="expiry-fill"></div>
+        </div>
+        <p class="muted" data-field="expiryText"></p>
+        <div class="item-actions">
+          <button class="btn small" data-action="sell">Продать</button>
+          <button class="btn small" data-action="process">Переработать</button>
+        </div>
+      </article>
+    </template>
+
+    <template id="plot-card-template">
+      <section class="plot-card">
+        <div class="card-illustration" data-field="art"></div>
+        <header>
+          <div>
+            <h3 data-field="title"></h3>
+            <p class="muted" data-field="subtitle"></p>
+          </div>
+          <div class="plot-controls">
+            <button class="icon-button" data-action="togglePlotAutoWater" title="Автополив">
+              <span class="icon">💧</span>
+            </button>
+            <button class="icon-button" data-action="togglePlotAutoHarvest" title="Автосбор">
+              <span class="icon">🧺</span>
+            </button>
+          </div>
+        </header>
+        <p class="muted" data-field="summary"></p>
+        <button class="btn small" data-action="openPlot">Открыть участок</button>
+      </section>
+    </template>
+
+    <template id="tree-card-template">
+      <article class="tree-card">
+        <div class="card-illustration" data-field="art"></div>
+        <header>
+          <div>
+            <h4 data-field="title"></h4>
+            <p class="muted" data-field="status"></p>
+          </div>
+          <div class="tree-controls">
+            <button class="icon-button" data-action="toggleTreeAutoWater" title="Автополив">
+              <span class="icon">💧</span>
+            </button>
+            <button class="icon-button" data-action="toggleTreeAutoHarvest" title="Автосбор">
+              <span class="icon">🧺</span>
+            </button>
+          </div>
+        </header>
+        <div class="progress-group">
+          <div class="progress-label">
+            <span>Полив</span>
+            <button class="link" data-action="waterTree">Полить</button>
+          </div>
+          <div class="progress-bar hydration" data-field="hydrationBar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+        <div class="progress-group">
+          <div class="progress-label">
+            <span>Созревание</span>
+            <button class="link" data-action="harvestTree">Собрать</button>
+          </div>
+          <div class="progress-bar growth" data-field="growthBar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+        <div class="tree-footer">
+          <button class="btn small" data-action="upgradeTree">Улучшить дерево</button>
+          <span class="muted" data-field="nextYield"></span>
+        </div>
+      </article>
+    </template>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
