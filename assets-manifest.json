@@ -1,0 +1,18 @@
+{
+  "images": {
+    "tile": "assets/images/tile.png",
+    "tile_selected": "assets/images/tile_selected.png",
+    "tree_seed": "assets/images/tree_seed.png",
+    "tree_sapling": "assets/images/tree_sapling.png",
+    "tree_mature": "assets/images/tree_mature.png",
+    "storage": "assets/images/storage.png",
+    "factory": "assets/images/factory.png",
+    "icon_coins": "assets/images/icon_coins.png",
+    "icon_upgrade": "assets/images/icon_upgrade.png"
+  },
+  "audio": {
+    "click": "assets/audio/click.wav",
+    "success": "assets/audio/success.wav",
+    "error": "assets/audio/error.wav"
+  }
+}
