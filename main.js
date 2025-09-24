@@ -14,11 +14,11 @@ const CONSTANTS = {
   },
   trees: {
     maxLevel: 5,
-    growthTime: [30, 90, 140, 220, 320], // seconds per level
-    fruitCycle: 40, // seconds to spawn harvest at level >=1
+    growthTime: [12, 38, 70, 110, 160], // seconds per level
+    fruitCycle: 20, // seconds to spawn harvest at level >=1
     baseYield: 8,
     yieldPerLevel: 4,
-    waterBoost: 1.5,
+    waterBoost: 1.6,
     waterDuration: 50,
     autoWaterCostPerDay: 120,
     autoHarvestCostPerDay: 160,
@@ -67,10 +67,10 @@ const INITIAL_STATE = {
         {
           id: "tree-1",
           type: "apples",
-          level: 0,
+          level: 1,
           growth: 0,
-          fruitProgress: 0,
-          fruitReady: 0,
+          fruitProgress: 0.4,
+          fruitReady: 12,
           waterUntil: 0,
           lastWatered: 0,
           autoWater: false,
@@ -349,6 +349,7 @@ class Game {
     this.hudRefreshTimer = 0;
 
     this.hoveredPlot = null;
+    this.hoveredTree = null;
     this.selectedPlot = null;
     this.lastUpdate = performance.now();
     this.fps = 0;
@@ -469,13 +470,21 @@ class Game {
       } else {
         pointer.x = ev.clientX - rect().left;
         pointer.y = ev.clientY - rect().top;
-        const plot = this.pickPlot(pointer.x, pointer.y);
-        if (plot) {
-          this.selectPlot(plot);
+        const hit = this.pickAt(pointer.x, pointer.y);
+        if (hit.plot) {
+          this.selectPlot(hit.plot);
+          if (
+            hit.treeIndex !== null &&
+            hit.plot.trees[hit.treeIndex] &&
+            hit.plot.trees[hit.treeIndex].fruitReady > 0
+          ) {
+            this.handlePlotAction(hit.plot, "harvest", hit.treeIndex);
+          }
           this.playSound("click");
         } else {
           this.selectPlot(null);
         }
+        this.canvas.style.cursor = this.computeCursor(hit);
       }
     });
 
@@ -492,7 +501,19 @@ class Game {
       }
       pointer.x = ev.clientX - rect().left;
       pointer.y = ev.clientY - rect().top;
-      this.hoveredPlot = this.pickPlot(pointer.x, pointer.y);
+      const hit = this.pickAt(pointer.x, pointer.y);
+      this.hoveredPlot = hit.plot;
+      this.hoveredTree =
+        hit.plot && hit.treeIndex !== null
+          ? { plotId: hit.plot.id, index: hit.treeIndex }
+          : null;
+      this.canvas.style.cursor = this.computeCursor(hit);
+    });
+
+    this.canvas.addEventListener("mouseleave", () => {
+      this.hoveredPlot = null;
+      this.hoveredTree = null;
+      this.canvas.style.cursor = "default";
     });
 
     this.canvas.addEventListener("wheel", (ev) => {
@@ -505,12 +526,13 @@ class Game {
     });
   }
 
-  pickPlot(x, y) {
+  pickAt(x, y) {
     const { width, height } = this.canvas;
     const worldX = (x - width / 2 - this.camera.x) / this.camera.zoom;
     const worldY = (y - height / 2 - this.camera.y) / this.camera.zoom;
-    let best = null;
+    let bestPlot = null;
     let bestDist = Infinity;
+    let bestLocal = { x: 0, y: 0 };
     for (const plot of this.state.plots) {
       const screen = this.plotScreenPosition(plot.position.x, plot.position.y);
       const localX = worldX - screen.x;
@@ -522,12 +544,48 @@ class Game {
       if (inside) {
         const dist = Math.abs(localX) + Math.abs(localY);
         if (dist < bestDist) {
-          best = plot;
+          bestPlot = plot;
           bestDist = dist;
+          bestLocal = { x: localX, y: localY };
         }
       }
     }
-    return best;
+    if (!bestPlot) {
+      return { plot: null, treeIndex: null };
+    }
+    const treeIndex = this.pickTreeIndex(bestPlot, bestLocal.x, bestLocal.y);
+    return { plot: bestPlot, treeIndex, localX: bestLocal.x, localY: bestLocal.y };
+  }
+
+  pickTreeIndex(plot, localX, localY) {
+    const radiusX = CONSTANTS.tile.width * 0.22;
+    const radiusY = CONSTANTS.tile.height * 0.28;
+    let bestIndex = null;
+    let bestDist = Infinity;
+    plot.trees.forEach((tree, index) => {
+      const offset = this.treeOffset(index);
+      const dx = localX - offset.x;
+      const dy = localY - offset.y;
+      const dist = Math.sqrt(dx * dx + ((dy * CONSTANTS.tile.width) / (CONSTANTS.tile.height * 1.1)) ** 2);
+      const inEllipse = Math.abs(dx) <= radiusX && Math.abs(dy) <= radiusY;
+      if (inEllipse && dist < bestDist) {
+        bestIndex = index;
+        bestDist = dist;
+      }
+    });
+    return bestIndex;
+  }
+
+  computeCursor(hit) {
+    if (!hit.plot) return "default";
+    if (hit.treeIndex !== null) {
+      const tree = hit.plot.trees[hit.treeIndex];
+      if (tree) {
+        return tree.fruitReady > 0 ? "grab" : "pointer";
+      }
+      return "crosshair";
+    }
+    return "pointer";
   }
 
   selectPlot(plot) {
@@ -577,50 +635,74 @@ class Game {
     const treeList = document.createElement("div");
     treeList.className = "tree-list";
 
+    const seedCost = CONSTANTS.economy.treeSeedCost;
     plot.trees.forEach((tree, index) => {
       const card = document.createElement("div");
       card.className = "tree-card";
       card.innerHTML = `<div class="tree-card-title">Ячейка ${index + 1}</div>`;
 
       if (!tree) {
+        card.classList.add("empty");
         const emptyInfo = document.createElement("div");
         emptyInfo.className = "tree-card-info";
-        emptyInfo.textContent = "Свободно";
+        emptyInfo.innerHTML = `<span>Свободно</span><span>${seedCost} монет</span>`;
         card.appendChild(emptyInfo);
-        const plantBtn = this.createActionButton("primary", "Посадить семечко", () =>
-          this.handlePlotAction(plot, "plant", index)
+        const plantBtn = this.createActionButton(
+          "primary",
+          `Посадить семечко`,
+          () => this.handlePlotAction(plot, "plant", index)
         );
+        if (this.state.coins < seedCost) {
+          plantBtn.disabled = true;
+          plantBtn.title = "Недостаточно монет";
+        }
         card.appendChild(plantBtn);
       } else {
+        const now = Date.now();
+        const ready = tree.fruitReady > 0;
+        const watered = tree.waterUntil > now;
+        if (ready) {
+          card.classList.add("ready");
+        }
         card.appendChild(
           this.createStatRow("Уровень", tree.level, "tree-card-info")
         );
+        const growthLabel =
+          tree.level >= CONSTANTS.trees.maxLevel
+            ? "Макс"
+            : `${Math.min(100, Math.round(tree.growth * 100))}%`;
         card.appendChild(
-          this.createStatRow(
-            "Рост",
-            `${Math.min(100, Math.round(tree.growth * 100))}%`,
-            "tree-card-info"
-          )
+          this.createStatRow("Рост", growthLabel, "tree-card-info")
         );
-        card.appendChild(
-          this.createStatRow(
-            "Урожай",
-            tree.fruitReady,
-            "tree-card-info"
-          )
+        const fruitRow = this.createStatRow(
+          "Урожай",
+          `${tree.fruitReady} шт.`,
+          "tree-card-info"
         );
+        if (ready) {
+          fruitRow.classList.add("yield-ready");
+        }
+        card.appendChild(fruitRow);
         const btnRow = document.createElement("div");
         btnRow.className = "tree-card-actions";
-        btnRow.appendChild(
-          this.createActionButton("secondary", "Полить", () =>
-            this.handlePlotAction(plot, "water", index)
-          )
+        const waterBtn = this.createActionButton("secondary", "Полить", () =>
+          this.handlePlotAction(plot, "water", index)
         );
-        btnRow.appendChild(
-          this.createActionButton("secondary", "Собрать", () =>
-            this.handlePlotAction(plot, "harvest", index)
-          )
+        if (watered) {
+          waterBtn.disabled = true;
+          waterBtn.textContent = "Полито";
+        }
+        btnRow.appendChild(waterBtn);
+        const harvestBtn = this.createActionButton(
+          "secondary",
+          ready ? `Собрать (${tree.fruitReady})` : "Собрать",
+          () => this.handlePlotAction(plot, "harvest", index)
         );
+        if (!ready) {
+          harvestBtn.disabled = true;
+          harvestBtn.title = "Урожай еще не готов";
+        }
+        btnRow.appendChild(harvestBtn);
         card.appendChild(btnRow);
       }
       treeList.appendChild(card);
@@ -658,6 +740,7 @@ class Game {
   handlePlotAction(plot, action, treeIndex = null) {
     const tree =
       treeIndex !== null && treeIndex !== undefined ? plot.trees[treeIndex] : null;
+    let changed = false;
     switch (action) {
       case "plant":
         if (tree) {
@@ -674,6 +757,7 @@ class Game {
         plot.trees[treeIndex] = this.createTree();
         this.toast.show("Семечко посажено", "success");
         this.playSound("success");
+        changed = true;
         break;
       case "water":
         if (!tree) {
@@ -684,6 +768,7 @@ class Game {
         tree.lastWatered = Date.now();
         this.toast.show("Дерево полито", "success");
         this.playSound("success");
+        changed = true;
         break;
       case "harvest":
         if (!tree || tree.fruitReady <= 0) {
@@ -700,42 +785,51 @@ class Game {
         tree.fruitReady = 0;
         this.toast.show("Урожай собран", "success");
         this.playSound("success");
+        changed = true;
         break;
       case "autoWater":
-        this.toggleAutoService(plot, "autoWater");
+        changed = this.toggleAutoService(plot, "autoWater") || changed;
         break;
       case "autoHarvest":
-        this.toggleAutoService(plot, "autoHarvest");
+        changed = this.toggleAutoService(plot, "autoHarvest") || changed;
         break;
       case "upgrade":
-        this.upgradePlot(plot);
+        changed = this.upgradePlot(plot) || changed;
         break;
     }
     this.updateHUD();
     this.renderSelectionPanel();
+    if (changed) {
+      if (this.debugEnabled) {
+        this.renderDebugPanel();
+      }
+      this.persistState();
+    }
   }
 
   toggleAutoService(plot, key) {
-    plot[key] = !plot[key];
     const price =
       key === "autoWater"
         ? CONSTANTS.trees.autoWaterCostPerDay
         : CONSTANTS.trees.autoHarvestCostPerDay;
-    if (plot[key]) {
+    const untilKey = key === "autoWater" ? "autoWaterPaidUntil" : "autoHarvestPaidUntil";
+    if (!plot[key]) {
       if (this.state.coins < price) {
-        plot[key] = false;
         this.toast.show("Недостаточно монет для услуги", "error");
-        return;
+        this.playSound("error");
+        return false;
       }
+      plot[key] = true;
       this.state.coins -= price;
-      const untilKey = key === "autoWater" ? "autoWaterPaidUntil" : "autoHarvestPaidUntil";
       plot[untilKey] = Date.now() + 24 * 60 * 60 * 1000;
       this.toast.show("Услуга активирована", "success");
-    } else {
-      const untilKey = key === "autoWater" ? "autoWaterPaidUntil" : "autoHarvestPaidUntil";
-      plot[untilKey] = Date.now();
-      this.toast.show("Услуга отключена", "info");
+      this.playSound("success");
+      return true;
     }
+    plot[key] = false;
+    plot[untilKey] = Date.now();
+    this.toast.show("Услуга отключена", "info");
+    return true;
   }
 
   upgradePlot(plot) {
@@ -743,7 +837,7 @@ class Game {
     if (this.state.coins < cost) {
       this.toast.show("Недостаточно монет", "error");
       this.playSound("error");
-      return;
+      return false;
     }
     plot.level += 1;
     this.state.coins -= cost;
@@ -752,6 +846,7 @@ class Game {
     }
     this.toast.show("Участок улучшен", "success");
     this.playSound("success");
+    return true;
   }
 
   buyPlot() {
@@ -786,6 +881,7 @@ class Game {
     this.playSound("success");
     this.updateHUD();
     this.renderDebugPanel();
+    this.persistState();
   }
 
   createTree() {
@@ -813,6 +909,7 @@ class Game {
     this.playSound("success");
     this.updateHUD();
     this.renderStorageModal();
+    this.persistState();
   }
 
   upgradeFactory() {
@@ -826,6 +923,7 @@ class Game {
     this.toast.show("Завод улучшен", "success");
     this.playSound("success");
     this.renderFactoryModal();
+    this.persistState();
   }
 
   startFactoryBatch() {
@@ -854,6 +952,7 @@ class Game {
     this.toast.show("Производство запущено", "success");
     this.playSound("success");
     this.renderFactoryModal();
+    this.persistState();
   }
 
   renderStorageModal() {
@@ -886,6 +985,7 @@ class Game {
         this.playSound("success");
         this.renderStorageModal();
         this.updateHUD();
+        this.persistState();
       });
       buttons.appendChild(sellBtn);
       row.appendChild(buttons);
@@ -997,6 +1097,7 @@ class Game {
 
   updatePlots(dt) {
     const now = Date.now();
+    let changed = false;
     for (const plot of this.state.plots) {
       for (const tree of plot.trees) {
         if (!tree) continue;
@@ -1013,6 +1114,7 @@ class Game {
               `Дерево ${tree.id} выросло до уровня ${tree.level}`,
               "info"
             );
+            changed = true;
           }
           if (tree.level >= maxLevel) {
             tree.growth = 0;
@@ -1028,23 +1130,35 @@ class Game {
             const batches = Math.floor(tree.fruitProgress);
             tree.fruitReady += yieldAmount * batches;
             tree.fruitProgress -= batches;
+            if (batches > 0) {
+              changed = true;
+            }
           }
         }
         if (plot.autoHarvest && tree.fruitReady > 0) {
           if (this.storageManager.hasSpace(tree.fruitReady)) {
             this.storageManager.add("apples", tree.fruitReady);
             tree.fruitReady = 0;
+            changed = true;
           }
         }
         if (plot.autoWater && tree.waterUntil < now) {
           tree.waterUntil = now + CONSTANTS.trees.waterDuration * 1000;
+          changed = true;
         }
       }
+    }
+    if (changed) {
+      if (this.debugEnabled) {
+        this.renderDebugPanel();
+      }
+      this.persistState();
     }
   }
 
   updateStorage(dt) {
     const items = this.state.storage.items;
+    let changed = false;
     for (const [type, entry] of Object.entries(items)) {
       const spoilTime = CONSTANTS.storage.spoilTimes[type];
       if (!spoilTime || entry.amount <= 0) continue;
@@ -1053,15 +1167,27 @@ class Game {
         entry.amount -= 1;
         entry.spoilProgress -= 1;
         this.toast.show(`${type} частично испортился`, "info");
+        changed = true;
       }
+    }
+    if (changed) {
+      this.updateHUD();
+      if (this.debugEnabled) {
+        this.renderDebugPanel();
+      }
+      this.persistState();
     }
   }
 
   updateFactory(dt) {
     const factory = this.state.factory;
+    let changed = false;
+    let refreshUI = false;
     if (!factory.currentTask && factory.queue.length > 0) {
       factory.currentTask = factory.queue.shift();
       factory.currentTask.progress = 0;
+      changed = true;
+      refreshUI = true;
     }
     if (factory.currentTask) {
       factory.currentTask.progress += dt;
@@ -1076,32 +1202,55 @@ class Game {
           factory.queue.unshift(factory.currentTask);
         }
         factory.currentTask = null;
-        this.renderFactoryModal();
+        changed = true;
+        refreshUI = true;
       }
+    }
+    if (refreshUI) {
+      this.renderFactoryModal();
+    }
+    if (changed) {
+      this.updateHUD();
+      if (this.debugEnabled) {
+        this.renderDebugPanel();
+      }
+      this.persistState();
     }
   }
 
   updateAutoServices() {
     const now = Date.now();
+    let changed = false;
     for (const plot of this.state.plots) {
       if (plot.autoWater && now > plot.autoWaterPaidUntil) {
         if (this.state.coins >= CONSTANTS.trees.autoWaterCostPerDay) {
           this.state.coins -= CONSTANTS.trees.autoWaterCostPerDay;
           plot.autoWaterPaidUntil = now + 24 * 60 * 60 * 1000;
+          changed = true;
         } else {
           plot.autoWater = false;
           this.toast.show("Автополив отключен из-за нехватки монет", "error");
+          changed = true;
         }
       }
       if (plot.autoHarvest && now > plot.autoHarvestPaidUntil) {
         if (this.state.coins >= CONSTANTS.trees.autoHarvestCostPerDay) {
           this.state.coins -= CONSTANTS.trees.autoHarvestCostPerDay;
           plot.autoHarvestPaidUntil = now + 24 * 60 * 60 * 1000;
+          changed = true;
         } else {
           plot.autoHarvest = false;
           this.toast.show("Автосбор отключен из-за нехватки монет", "error");
+          changed = true;
         }
       }
+    }
+    if (changed) {
+      this.updateHUD();
+      if (this.debugEnabled) {
+        this.renderDebugPanel();
+      }
+      this.persistState();
     }
   }
 
@@ -1185,7 +1334,11 @@ class Game {
     let offsetIndex = 0;
     for (const tree of plot.trees) {
       const offset = this.treeOffset(offsetIndex);
-      this.drawTree(screen.x + offset.x, screen.y + offset.y, tree);
+      const hovered =
+        this.hoveredTree &&
+        this.hoveredTree.plotId === plot.id &&
+        this.hoveredTree.index === offsetIndex;
+      this.drawTree(screen.x + offset.x, screen.y + offset.y, tree, hovered);
       offsetIndex++;
     }
 
@@ -1265,33 +1418,97 @@ class Game {
     ctx.restore();
   }
 
-  drawTree(x, y, tree) {
-    if (!tree) return;
+  drawTree(x, y, tree, highlight = false) {
     const ctx = this.ctx;
     ctx.save();
-    ctx.translate(x, y - 30);
+    ctx.translate(x, y);
+
+    const ready = Boolean(tree && tree.fruitReady > 0);
+    ctx.save();
+    ctx.scale(1, 0.55);
+    ctx.beginPath();
+    let ringRadius = 16;
+    let ringColor = "rgba(0, 0, 0, 0.28)";
+    if (!tree) {
+      ringRadius = highlight ? 20 : 18;
+      ringColor = highlight
+        ? "rgba(255, 189, 74, 0.45)"
+        : "rgba(255, 255, 255, 0.12)";
+    } else if (ready || highlight) {
+      ringRadius = highlight ? 22 : 18;
+      ringColor = highlight
+        ? "rgba(255, 210, 102, 0.55)"
+        : "rgba(255, 210, 102, 0.28)";
+    }
+    ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+    ctx.fillStyle = ringColor;
+    ctx.fill();
+    ctx.restore();
+
+    if (!tree) {
+      ctx.fillStyle = highlight ? "rgba(255, 220, 140, 0.9)" : "rgba(255, 255, 255, 0.45)";
+      ctx.font = "18px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("+", 0, -2);
+      ctx.restore();
+      return;
+    }
+
+    ctx.save();
+    ctx.translate(0, -32);
     ctx.scale(0.9, 0.9);
+    if (highlight || ready) {
+      ctx.shadowColor = "rgba(255, 210, 102, 0.4)";
+      ctx.shadowBlur = highlight ? 26 : 14;
+      ctx.shadowOffsetY = 4;
+    }
     ctx.fillStyle = "#543a2d";
-    ctx.fillRect(-6, 0, 12, 28);
+    ctx.fillRect(-6, 0, 12, 34);
     const canopyColors = ["#42562f", "#4d7c2d", "#64a338", "#7fc14a", "#92d35d"];
     const color = canopyColors[Math.min(tree.level, canopyColors.length - 1)];
     ctx.beginPath();
     ctx.fillStyle = color;
-    ctx.arc(0, -6, 22 + tree.level * 3, 0, Math.PI * 2);
+    ctx.arc(0, -16, 26 + tree.level * 3, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+
     if (tree.fruitReady > 0) {
-      ctx.fillStyle = "#ffcf4d";
+      ctx.save();
+      ctx.translate(0, -58);
+      ctx.fillStyle = "rgba(12, 18, 12, 0.82)";
+      ctx.fillRect(-30, -12, 60, 20);
+      ctx.strokeStyle = "rgba(255, 210, 102, 0.6)";
+      ctx.strokeRect(-30, -12, 60, 20);
+      ctx.fillStyle = "#ffd45c";
       ctx.font = "14px sans-serif";
-      ctx.fillText(`🍎${tree.fruitReady}`, -18, -28);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`🍎${tree.fruitReady}`, 0, -2);
+      ctx.restore();
     }
+
     ctx.restore();
   }
 
   treeOffset(index) {
-    const spacing = 30;
+    const baseOffsets = [
+      { x: 0, y: -8 },
+      { x: -26, y: 8 },
+      { x: 26, y: 8 },
+      { x: 0, y: 24 },
+      { x: -34, y: -18 },
+      { x: 34, y: -18 },
+    ];
+    if (index < baseOffsets.length) {
+      return baseOffsets[index];
+    }
+    const extra = index - baseOffsets.length;
+    const row = Math.floor(extra / 2) + 1;
+    const dir = extra % 2 === 0 ? -1 : 1;
     return {
-      x: (index % 2 === 0 ? -spacing : spacing) / 2,
-      y: Math.floor(index / 2) * -10,
+      x: dir * (30 + row * 6),
+      y: 24 + row * 14,
     };
   }
 

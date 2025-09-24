@@ -163,6 +163,20 @@ body {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
+.tree-card.empty {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.tree-card.ready {
+  background: rgba(255, 193, 80, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 210, 102, 0.6), 0 0 18px rgba(255, 210, 102, 0.25);
+}
+
+.tree-card.ready .tree-card-title {
+  color: #ffd45c;
+}
+
 .tree-card-title {
   font-weight: 600;
   font-size: 15px;
@@ -174,6 +188,19 @@ body {
   justify-content: space-between;
 }
 
+.tree-card-info span:last-child {
+  font-weight: 600;
+}
+
+.tree-card.empty .tree-card-info span:last-child {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.stat-row.yield-ready span:last-child {
+  color: #ffd45c;
+}
+
 .tree-card-actions {
   display: flex;
   gap: 8px;
@@ -181,6 +208,18 @@ body {
 
 .tree-card button {
   width: 100%;
+}
+
+button:disabled,
+button:disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.48;
+  box-shadow: none;
+  filter: saturate(0.6);
+}
+
+.tree-card button:disabled {
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 #toast-container {
