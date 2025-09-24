@@ -461,15 +461,21 @@ class Game {
   setupInput() {
     const rect = () => this.canvas.getBoundingClientRect();
     const pointer = { x: 0, y: 0 };
+    const updatePointer = (ev) => {
+      const bounds = rect();
+      const scaleX = this.canvas.width / bounds.width;
+      const scaleY = this.canvas.height / bounds.height;
+      pointer.x = (ev.clientX - bounds.left) * scaleX;
+      pointer.y = (ev.clientY - bounds.top) * scaleY;
+    };
 
     this.canvas.addEventListener("mousedown", (ev) => {
+      updatePointer(ev);
       if (ev.button === 1 || ev.button === 2 || ev.shiftKey) {
         this.camera.dragging = true;
         this.camera.dragStart = { x: ev.clientX, y: ev.clientY };
         this.camera.positionStart = { x: this.camera.x, y: this.camera.y };
       } else {
-        pointer.x = ev.clientX - rect().left;
-        pointer.y = ev.clientY - rect().top;
         const hit = this.pickAt(pointer.x, pointer.y);
         if (hit.plot) {
           this.selectPlot(hit.plot);
@@ -493,14 +499,13 @@ class Game {
     });
 
     window.addEventListener("mousemove", (ev) => {
+      updatePointer(ev);
       if (this.camera.dragging) {
         const dx = ev.clientX - this.camera.dragStart.x;
         const dy = ev.clientY - this.camera.dragStart.y;
         this.camera.x = this.camera.positionStart.x + dx;
         this.camera.y = this.camera.positionStart.y + dy;
       }
-      pointer.x = ev.clientX - rect().left;
-      pointer.y = ev.clientY - rect().top;
       const hit = this.pickAt(pointer.x, pointer.y);
       this.hoveredPlot = hit.plot;
       this.hoveredTree =
@@ -517,6 +522,7 @@ class Game {
     });
 
     this.canvas.addEventListener("wheel", (ev) => {
+      updatePointer(ev);
       const oldZoom = this.camera.zoom;
       const zoomFactor = ev.deltaY < 0 ? 1.1 : 0.9;
       this.camera.zoom = Math.min(2.5, Math.max(0.5, this.camera.zoom * zoomFactor));
@@ -1324,12 +1330,7 @@ class Game {
     const screen = this.plotScreenPosition(plot.position.x, plot.position.y);
     const isHovered = this.hoveredPlot && this.hoveredPlot.id === plot.id;
     const isSelected = this.selectedPlot && this.selectedPlot.id === plot.id;
-    const color = isSelected
-      ? "rgba(255, 189, 74, 0.65)"
-      : isHovered
-      ? "rgba(126, 214, 223, 0.55)"
-      : "rgba(0, 0, 0, 0.35)";
-    this.drawTile(screen.x, screen.y, color);
+    this.drawTile(screen.x, screen.y, { hovered: isHovered, selected: isSelected });
 
     let offsetIndex = 0;
     for (const tree of plot.trees) {
@@ -1353,51 +1354,109 @@ class Game {
     }
   }
 
-  drawTile(x, y, tint) {
+  drawTile(x, y, state = {}) {
     const ctx = this.ctx;
-    const halfW = CONSTANTS.tile.width / 2;
-    const halfH = CONSTANTS.tile.height / 2;
+    const width = CONSTANTS.tile.width;
+    const height = CONSTANTS.tile.height;
+    const halfW = width / 2;
+    const halfH = height / 2;
+    const baseImg = this.assets.getImage("tile");
+    const selectedImg = this.assets.getImage("tile_selected");
+
+    const drawDiamondOverlay = (color) => {
+      ctx.beginPath();
+      ctx.moveTo(0, -halfH);
+      ctx.lineTo(halfW, 0);
+      ctx.lineTo(0, halfH);
+      ctx.lineTo(-halfW, 0);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    };
+
     ctx.save();
     ctx.translate(x, y);
-    ctx.beginPath();
-    ctx.moveTo(0, -halfH);
-    ctx.lineTo(halfW, 0);
-    ctx.lineTo(0, halfH);
-    ctx.lineTo(-halfW, 0);
-    ctx.closePath();
-    ctx.fillStyle = "#244033";
-    ctx.fill();
-    ctx.strokeStyle = "#0d1c16";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    if (tint) {
-      ctx.fillStyle = tint;
+
+    if (baseImg || selectedImg) {
+      const sprite = state.selected && selectedImg ? selectedImg : baseImg;
+      if (sprite) {
+        ctx.drawImage(sprite, -width / 2, -height / 2, width, height);
+      } else if (baseImg) {
+        ctx.drawImage(baseImg, -width / 2, -height / 2, width, height);
+      }
+      if (!state.selected) {
+        drawDiamondOverlay("rgba(0, 0, 0, 0.22)");
+      }
+      if (state.hovered && !state.selected) {
+        drawDiamondOverlay("rgba(126, 214, 223, 0.35)");
+      }
+      if (state.selected) {
+        drawDiamondOverlay("rgba(255, 189, 74, 0.45)");
+      }
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -halfH);
+      ctx.lineTo(halfW, 0);
+      ctx.lineTo(0, halfH);
+      ctx.lineTo(-halfW, 0);
+      ctx.closePath();
+      ctx.fillStyle = "#244033";
       ctx.fill();
+      ctx.strokeStyle = "#0d1c16";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (state.selected) {
+        ctx.fillStyle = "rgba(255, 189, 74, 0.65)";
+        ctx.fill();
+      } else if (state.hovered) {
+        ctx.fillStyle = "rgba(126, 214, 223, 0.55)";
+        ctx.fill();
+      } else {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.fill();
+      }
     }
+
     ctx.restore();
   }
 
   drawAvailableTile(x, y) {
     const ctx = this.ctx;
-    const halfW = CONSTANTS.tile.width / 2;
-    const halfH = CONSTANTS.tile.height / 2;
+    const width = CONSTANTS.tile.width;
+    const height = CONSTANTS.tile.height;
+    const halfW = width / 2;
+    const halfH = height / 2;
+    const baseImg = this.assets.getImage("tile");
     ctx.save();
     ctx.translate(x, y);
+    if (baseImg) {
+      ctx.globalAlpha = 0.45;
+      ctx.drawImage(baseImg, -width / 2, -height / 2, width, height);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -halfH);
+      ctx.lineTo(halfW, 0);
+      ctx.lineTo(0, halfH);
+      ctx.lineTo(-halfW, 0);
+      ctx.closePath();
+      const gradient = ctx.createLinearGradient(-halfW, -halfH, halfW, halfH);
+      gradient.addColorStop(0, "rgba(120, 190, 255, 0.15)");
+      gradient.addColorStop(1, "rgba(60, 100, 180, 0.1)");
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
     ctx.beginPath();
     ctx.moveTo(0, -halfH);
     ctx.lineTo(halfW, 0);
     ctx.lineTo(0, halfH);
     ctx.lineTo(-halfW, 0);
     ctx.closePath();
-    const gradient = ctx.createLinearGradient(-halfW, -halfH, halfW, halfH);
-    gradient.addColorStop(0, "rgba(120, 190, 255, 0.15)");
-    gradient.addColorStop(1, "rgba(60, 100, 180, 0.1)");
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    ctx.strokeStyle = "rgba(132, 196, 255, 0.35)";
+    ctx.strokeStyle = "rgba(132, 196, 255, 0.5)";
     ctx.setLineDash([6, 4]);
     ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.restore();
   }
 
@@ -1455,23 +1514,44 @@ class Game {
       return;
     }
 
-    ctx.save();
-    ctx.translate(0, -32);
-    ctx.scale(0.9, 0.9);
-    if (highlight || ready) {
-      ctx.shadowColor = "rgba(255, 210, 102, 0.4)";
-      ctx.shadowBlur = highlight ? 26 : 14;
-      ctx.shadowOffsetY = 4;
+    const spriteKey = this.treeSpriteKey(tree);
+    const sprite = spriteKey ? this.assets.getImage(spriteKey) : null;
+
+    if (sprite) {
+      const maxWidth = CONSTANTS.tile.width * 0.9;
+      const width = maxWidth;
+      const height = sprite.height * (width / sprite.width);
+      const baseOffset = CONSTANTS.tile.height * 0.43;
+      if (highlight || ready) {
+        const canopyCenterY = -height + baseOffset + height * 0.35;
+        ctx.save();
+        ctx.globalAlpha = highlight ? 0.45 : 0.32;
+        ctx.fillStyle = "rgba(255, 210, 102, 0.6)";
+        ctx.beginPath();
+        ctx.ellipse(0, canopyCenterY, width * 0.45, height * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.drawImage(sprite, -width / 2, -height + baseOffset, width, height);
+    } else {
+      ctx.save();
+      ctx.translate(0, -32);
+      ctx.scale(0.9, 0.9);
+      if (highlight || ready) {
+        ctx.shadowColor = "rgba(255, 210, 102, 0.4)";
+        ctx.shadowBlur = highlight ? 26 : 14;
+        ctx.shadowOffsetY = 4;
+      }
+      ctx.fillStyle = "#543a2d";
+      ctx.fillRect(-6, 0, 12, 34);
+      const canopyColors = ["#42562f", "#4d7c2d", "#64a338", "#7fc14a", "#92d35d"];
+      const color = canopyColors[Math.min(tree.level, canopyColors.length - 1)];
+      ctx.beginPath();
+      ctx.fillStyle = color;
+      ctx.arc(0, -16, 26 + tree.level * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
-    ctx.fillStyle = "#543a2d";
-    ctx.fillRect(-6, 0, 12, 34);
-    const canopyColors = ["#42562f", "#4d7c2d", "#64a338", "#7fc14a", "#92d35d"];
-    const color = canopyColors[Math.min(tree.level, canopyColors.length - 1)];
-    ctx.beginPath();
-    ctx.fillStyle = color;
-    ctx.arc(0, -16, 26 + tree.level * 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
 
     if (tree.fruitReady > 0) {
       ctx.save();
@@ -1489,6 +1569,14 @@ class Game {
     }
 
     ctx.restore();
+  }
+
+  treeSpriteKey(tree) {
+    if (!tree) return null;
+    if (tree.level <= 0) return "tree_seed";
+    if (tree.level === 1) return "tree_sapling";
+    if (tree.level === 2) return "tree_sapling";
+    return "tree_mature";
   }
 
   treeOffset(index) {

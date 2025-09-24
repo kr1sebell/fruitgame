@@ -59,9 +59,10 @@ body {
 }
 
 .hud-icon.coin {
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #fff3a6, #f6c445 60%, #d27d24);
-  box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.3), inset 2px 2px 4px rgba(255, 255, 255, 0.4);
+  background-image: url("assets/images/icon_coins.png");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
 }
 
 .hud-btn {
