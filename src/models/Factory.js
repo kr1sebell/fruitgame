@@ -8,11 +8,15 @@ export class Factory {
     this.level = data.level || 1;
     this.queue = (data.queue || []).map((job) => ({ ...job }));
     this.sprite = null;
+    this.label = null;
   }
 
   createSprite(position) {
     if (this.sprite) {
       this.sprite.destroy();
+    }
+    if (this.label) {
+      this.label.destroy();
     }
     this.sprite = this.scene.add.image(position.x, position.y, 'factory');
     this.sprite.setOrigin(0.5, 0.8);
@@ -29,10 +33,27 @@ export class Factory {
     });
     this.sprite.on('pointerover', () => {
       this.sprite.setTint(0xffd180);
+      if (this.label) {
+        this.label.setColor('#fcd34d');
+      }
     });
     this.sprite.on('pointerout', () => {
       this.sprite.clearTint();
+      if (this.label) {
+        this.label.setColor('#e2e8f0');
+      }
     });
+
+    this.label = this.scene.add.text(position.x, position.y - 72, 'Завод', {
+      fontSize: '14px',
+      fontFamily: 'Segoe UI',
+      color: '#e2e8f0'
+    });
+    this.label.setOrigin(0.5, 1);
+    this.label.setBackgroundColor('rgba(15,23,42,0.78)');
+    this.label.setPadding(8, 4);
+    this.label.setDepth(position.y + 46);
+    this.label.setData('ui', false);
   }
 
   enqueue(type) {

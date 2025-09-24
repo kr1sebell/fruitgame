@@ -13,11 +13,18 @@ export class Plot {
     this.trees = [];
 
     this.tile = null;
+    this.badgeContainer = null;
+    this.badgeBackground = null;
+    this.badgeText = null;
+    this.badgeIcons = null;
     this.createTile();
+    this.createBadge();
 
     (data.trees || []).forEach((treeData) => {
       this.addTree(treeData);
     });
+
+    this.refreshBadge();
   }
 
   get capacity() {
@@ -49,12 +56,52 @@ export class Plot {
     });
   }
 
+  createBadge() {
+    const iso = this.scene.toIsoPoint(this.position.x, this.position.y);
+    if (this.badgeContainer) {
+      this.badgeContainer.destroy(true);
+    }
+    this.badgeContainer = this.scene.add.container(iso.x, iso.y - 58);
+    this.badgeContainer.setDepth(iso.y + 80);
+    this.badgeContainer.setData('ui', false);
+
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(0x0f172a, 0.85);
+    bg.fillRoundedRect(-58, -22, 116, 44, 18);
+    bg.lineStyle(2, 0xffffff, 0.2);
+    bg.strokeRoundedRect(-58, -22, 116, 44, 18);
+    bg.setData('ui', false);
+
+    const label = this.scene.add.text(0, -4, '', {
+      fontSize: '14px',
+      fontFamily: 'Segoe UI',
+      color: '#e2e8f0',
+      fontStyle: 'bold'
+    });
+    label.setOrigin(0.5);
+    label.setData('ui', false);
+
+    const icons = this.scene.add.text(0, 14, '', {
+      fontSize: '12px',
+      fontFamily: 'Segoe UI',
+      color: '#bae6fd'
+    });
+    icons.setOrigin(0.5);
+    icons.setData('ui', false);
+
+    this.badgeContainer.add([bg, label, icons]);
+    this.badgeBackground = bg;
+    this.badgeText = label;
+    this.badgeIcons = icons;
+  }
+
   addTree(treeData) {
     if (this.trees.length >= this.capacity) {
       return null;
     }
     const tree = new Tree(this.scene, this, treeData);
     this.trees.push(tree);
+    this.refreshBadge();
     return tree;
   }
 
@@ -71,6 +118,7 @@ export class Plot {
     if (tree) {
       this.scene.events.emit('plot:changed', this);
     }
+    this.refreshBadge();
     return tree;
   }
 
@@ -78,6 +126,7 @@ export class Plot {
     if (this.level < PLOT_CAPACITY.length - 1) {
       this.level += 1;
       this.scene.events.emit('plot:changed', this);
+      this.refreshBadge();
     }
   }
 
@@ -113,5 +162,24 @@ export class Plot {
       lastAutoCharge: this.lastAutoCharge,
       trees: this.trees.map((tree) => tree.toJSON())
     };
+  }
+
+  refreshBadge() {
+    if (!this.badgeContainer) {
+      return;
+    }
+    const hasAuto = this.autoWater || this.autoHarvest;
+    if (this.badgeBackground) {
+      this.badgeBackground.clear();
+      this.badgeBackground.fillStyle(hasAuto ? 0x1d4ed8 : 0x0f172a, hasAuto ? 0.88 : 0.85);
+      this.badgeBackground.fillRoundedRect(-58, -22, 116, 44, 18);
+      this.badgeBackground.lineStyle(2, hasAuto ? 0x38bdf8 : 0xffffff, hasAuto ? 0.4 : 0.2);
+      this.badgeBackground.strokeRoundedRect(-58, -22, 116, 44, 18);
+    }
+    const label = `L${this.level} · ${this.trees.length}/${this.capacity}`;
+    this.badgeText?.setText(label);
+    const icons = `${this.autoWater ? '💧' : ''}${this.autoHarvest ? '🧺' : ''}`;
+    this.badgeIcons?.setText(icons);
+    this.badgeIcons?.setVisible(Boolean(icons));
   }
 }

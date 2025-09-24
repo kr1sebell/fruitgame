@@ -103,6 +103,9 @@ export class DebugPanel {
 
     button.add([bg, text]);
     button.setInteractive(new Phaser.Geom.Rectangle(0, 0, width, 28), Phaser.Geom.Rectangle.Contains);
+    if (button.input) {
+      button.input.cursor = 'pointer';
+    }
     button.on('pointerdown', (pointer) => {
       if (!pointer.leftButtonDown()) {
         return;
@@ -148,10 +151,22 @@ export class DebugPanel {
     this.storageText.setText(storageLines.join('\n'));
 
     const plotLines = this.scene.player.plots.map((plot) => {
+      const autoFlags = [];
+      if (plot.autoWater) autoFlags.push('💧');
+      if (plot.autoHarvest) autoFlags.push('🧺');
+      const plotHeader = `Участок ${plot.id} L${plot.level} (${plot.trees.length}/${plot.capacity})${
+        autoFlags.length ? ` ${autoFlags.join(' ')}` : ''
+      }`;
       const trees = plot.trees
-        .map((tree) => `    ${tree.id}: L${tree.level} ${(tree.growthProgress * 100).toFixed(0)}%`)
+        .map((tree) => {
+          const treeFlags = `${tree.autoWater || plot.autoWater ? '💧' : ''}${
+            tree.autoHarvest || plot.autoHarvest ? '🧺' : ''
+          }`;
+          const flags = treeFlags ? ` ${treeFlags}` : '';
+          return `    ${tree.id}: L${tree.level} ${(tree.growthProgress * 100).toFixed(0)}%${flags}`;
+        })
         .join('\n');
-      return `Участок ${plot.id} L${plot.level} (${plot.trees.length}/${plot.capacity})\n${trees}`;
+      return trees ? `${plotHeader}\n${trees}` : plotHeader;
     });
     this.objectsText.setText(plotLines.join('\n\n'));
   }

@@ -7,7 +7,7 @@ const config = {
   width: window.innerWidth,
   height: window.innerHeight,
   parent: container,
-  backgroundColor: '#74b9ff',
+  backgroundColor: '#0f172a',
   pixelArt: true,
   scene: [MainScene]
 };

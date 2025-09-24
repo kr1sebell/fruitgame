@@ -4,6 +4,7 @@ const HUD_WIDTH = 240;
 const HUD_HEIGHT = 104;
 const ACTION_BUTTON_SIZE = 68;
 const CARD_HEIGHT = 210;
+const TOOLTIP_MIN_WIDTH = 140;
 
 export class UIManager {
   constructor(scene) {
@@ -19,6 +20,7 @@ export class UIManager {
     this.createActionButtons();
     this.createSelectionCard();
     this.createToast();
+    this.createTooltip();
     this.createStorageModal();
     this.createFactoryModal();
     this.createSettingsModal();
@@ -56,14 +58,14 @@ export class UIManager {
     });
     title.setData('ui', true);
 
-    this.currencyText = scene.add.text(20, 44, 'Монеты: 0', {
+    this.currencyText = scene.add.text(20, 44, '🪙 0', {
       fontSize: '16px',
       fontFamily: 'Segoe UI',
       color: '#22d3ee'
     });
     this.currencyText.setData('ui', true);
 
-    this.storageText = scene.add.text(20, 70, 'Склад: 0/0', {
+    this.storageText = scene.add.text(20, 70, '📦 0/0', {
       fontSize: '14px',
       fontFamily: 'Segoe UI',
       color: '#a5b4fc'
@@ -75,12 +77,16 @@ export class UIManager {
 
   createActionButtons() {
     const { scene } = this;
-    this.actionBar = scene.add.container(scene.scale.width - ACTION_BUTTON_SIZE - 24, 20);
+    this.actionBar = scene.add.container(scene.scale.width - ACTION_BUTTON_SIZE - 42, 32);
     this.actionBar.setScrollFactor(0);
     this.actionBar.setDepth(this.depth);
 
+    this.actionBarBackground = scene.add.graphics();
+    this.actionBarBackground.setData('ui', true);
+
     this.actionButtons = [];
 
+    this.actionBar.add(this.actionBarBackground);
     this.addActionButton('🛒', 'Купить участок', () => {
       scene.handleBuyPlot();
     });
@@ -95,6 +101,7 @@ export class UIManager {
     });
 
     this.layoutActionButtons();
+    this.redrawActionBarBackground();
   }
 
   addActionButton(icon, tooltip, callback) {
@@ -121,13 +128,27 @@ export class UIManager {
     container.add([bg, label]);
     container.setSize(ACTION_BUTTON_SIZE, ACTION_BUTTON_SIZE);
     container.setInteractive(new Phaser.Geom.Rectangle(0, 0, ACTION_BUTTON_SIZE, ACTION_BUTTON_SIZE), Phaser.Geom.Rectangle.Contains);
+    if (container.input) {
+      container.input.cursor = 'pointer';
+    }
     container.on('pointerdown', (pointer) => {
       if (!pointer.leftButtonDown()) return;
-      this.scene.sound?.play?.('click');
+      this.hideTooltip();
       callback();
     });
-    container.on('pointerover', () => bg.setFillStyle(0x4338ca, 0.95));
-    container.on('pointerout', () => bg.setFillStyle(0x312e81, 0.92));
+    container.on('pointerover', (pointer) => {
+      bg.setFillStyle(0x4338ca, 0.95);
+      if (tooltip) {
+        this.showTooltip(tooltip, pointer);
+      }
+    });
+    container.on('pointermove', (pointer) => {
+      this.moveTooltip(pointer);
+    });
+    container.on('pointerout', () => {
+      bg.setFillStyle(0x312e81, 0.92);
+      this.hideTooltip();
+    });
     container.setData('ui', true);
     container.tooltip = tooltip;
 
@@ -139,6 +160,22 @@ export class UIManager {
     this.actionButtons.forEach((button, index) => {
       button.y = index * (ACTION_BUTTON_SIZE + 12);
     });
+    this.redrawActionBarBackground();
+  }
+
+  redrawActionBarBackground() {
+    if (!this.actionBarBackground) {
+      return;
+    }
+    const totalButtons = this.actionButtons.length;
+    const contentHeight =
+      totalButtons > 0 ? (totalButtons - 1) * (ACTION_BUTTON_SIZE + 12) + ACTION_BUTTON_SIZE : ACTION_BUTTON_SIZE;
+    const boxHeight = contentHeight + 32;
+    this.actionBarBackground.clear();
+    this.actionBarBackground.fillStyle(0x0f172a, 0.82);
+    this.actionBarBackground.fillRoundedRect(-18, -20, ACTION_BUTTON_SIZE + 36, boxHeight, 24);
+    this.actionBarBackground.lineStyle(2, 0xffffff, 0.08);
+    this.actionBarBackground.strokeRoundedRect(-18, -20, ACTION_BUTTON_SIZE + 36, boxHeight, 24);
   }
 
   createSelectionCard() {
@@ -157,6 +194,16 @@ export class UIManager {
 
     this.selectionCardBackground = bg;
     this.selectionCardWidth = width;
+
+    this.selectionLeftPanel = scene.add.graphics();
+    this.selectionLeftPanel.setData('ui', true);
+    this.selectionRightPanel = scene.add.graphics();
+    this.selectionRightPanel.setData('ui', true);
+    this.drawSelectionPanels(width);
+
+    this.selectionDivider = scene.add.rectangle(0, 18, 2, CARD_HEIGHT - 36, 0xffffff, 0.1);
+    this.selectionDivider.setOrigin(0.5, 0);
+    this.selectionDivider.setData('ui', true);
 
     this.plotTitle = scene.add.text(-width / 2 + 24, 18, 'Выберите участок', {
       fontSize: '20px',
@@ -206,6 +253,9 @@ export class UIManager {
 
     this.selectionCard.add([
       bg,
+      this.selectionLeftPanel,
+      this.selectionRightPanel,
+      this.selectionDivider,
       this.plotTitle,
       this.plotDetails,
       this.plotButtonRow,
@@ -329,6 +379,29 @@ export class UIManager {
 
     this.toastContainer.add([bg, this.toastText]);
     this.toastContainer.setVisible(false);
+  }
+
+  createTooltip() {
+    const { scene } = this;
+    this.tooltip = scene.add.container(0, 0);
+    this.tooltip.setScrollFactor(0);
+    this.tooltip.setDepth(this.depth + 8);
+    this.tooltip.setVisible(false);
+    this.tooltip.setData('ui', true);
+
+    this.tooltipBg = scene.add.graphics();
+    this.tooltipBg.setData('ui', true);
+
+    this.tooltipText = scene.add.text(0, 0, '', {
+      fontSize: '14px',
+      fontFamily: 'Segoe UI',
+      color: '#e2e8f0',
+      align: 'center'
+    });
+    this.tooltipText.setOrigin(0.5);
+    this.tooltipText.setData('ui', true);
+
+    this.tooltip.add([this.tooltipBg, this.tooltipText]);
   }
 
   createStorageModal() {
@@ -499,6 +572,9 @@ export class UIManager {
     const button = this.scene.add.container(0, 0);
     button.setSize(36, 36);
     button.setInteractive(new Phaser.Geom.Rectangle(-18, -18, 36, 36), Phaser.Geom.Rectangle.Contains);
+    if (button.input) {
+      button.input.cursor = 'pointer';
+    }
 
     const bg = this.scene.add.circle(0, 0, 18, 0x1f2937, 0.95);
     bg.setStrokeStyle(2, 0xffffff, 0.12);
@@ -547,6 +623,11 @@ export class UIManager {
 
     button.add([bg, text]);
     button.setInteractive(new Phaser.Geom.Rectangle(0, 0, width, height), Phaser.Geom.Rectangle.Contains);
+    if (button.input) {
+      button.input.cursor = 'pointer';
+    }
+    button.setScrollFactor(0);
+    button.setDepth(this.depth + 1);
     button.on('pointerdown', (pointer) => {
       if (!pointer.leftButtonDown() || button.disabled) return;
       callback();
@@ -589,6 +670,7 @@ export class UIManager {
   showModal(key) {
     const modal = this.modals[key];
     if (!modal) return;
+    this.hideTooltip();
     modal.container.setVisible(true);
     this.scene.tweens.add({
       targets: modal.panel,
@@ -611,6 +693,7 @@ export class UIManager {
   hideModal(key) {
     const modal = this.modals[key];
     if (!modal) return;
+    this.hideTooltip();
     modal.container.setVisible(false);
   }
 
@@ -646,12 +729,12 @@ export class UIManager {
   }
 
   updateCurrency() {
-    this.currencyText.setText(`Монеты: ${Math.floor(this.scene.player.currency)}`);
+    this.currencyText.setText(`🪙 ${Math.floor(this.scene.player.currency)}`);
   }
 
   updateStorage() {
     const storage = this.scene.player.storage;
-    this.storageText.setText(`Склад: ${storage.usedSlots}/${storage.capacity}`);
+    this.storageText.setText(`📦 ${storage.usedSlots}/${storage.capacity}`);
 
     if (!this.storageSummaryText) {
       return;
@@ -847,17 +930,29 @@ export class UIManager {
     this.setToggleEnabled(this.treeAutoHarvest, true);
   }
 
+  drawSelectionPanels(width) {
+    if (!this.selectionLeftPanel || !this.selectionRightPanel) {
+      return;
+    }
+    this.selectionLeftPanel.clear();
+    this.selectionLeftPanel.fillStyle(0x111827, 0.55);
+    this.selectionLeftPanel.fillRoundedRect(-width / 2 + 16, 12, width / 2 - 32, CARD_HEIGHT - 24, 18);
+    this.selectionRightPanel.clear();
+    this.selectionRightPanel.fillStyle(0x0f172a, 0.45);
+    this.selectionRightPanel.fillRoundedRect(8, 12, width / 2 - 24, CARD_HEIGHT - 24, 18);
+  }
+
   drawUiProgress(tree) {
-    const width = this.selectionCardWidth - 120;
-    const startX = -this.selectionCardWidth / 2 + 60;
+    const columnWidth = Math.max(180, this.selectionCardWidth / 2 - 80);
+    const startX = this.selectionCardWidth / 2 - 24 - columnWidth;
     const y = 160;
     this.treeProgress.clear();
     this.treeProgress.fillStyle(0x1e293b, 0.9);
-    this.treeProgress.fillRoundedRect(startX, y, width, 16, 10);
+    this.treeProgress.fillRoundedRect(startX, y, columnWidth, 16, 10);
     const color = tree.isMature ? 0xfacc15 : 0x38bdf8;
     const value = tree.isMature ? 1 : tree.growthProgress;
     this.treeProgress.fillStyle(color, 0.95);
-    this.treeProgress.fillRoundedRect(startX + 2, y + 2, Math.max(0, width * value - 4), 12, 8);
+    this.treeProgress.fillRoundedRect(startX + 2, y + 2, Math.max(0, columnWidth * value - 4), 12, 8);
   }
 
   update(delta) {
@@ -880,12 +975,43 @@ export class UIManager {
     });
   }
 
+  showTooltip(content, pointer) {
+    if (!this.tooltip) {
+      return;
+    }
+    this.tooltipText.setText(content);
+    const width = Math.max(TOOLTIP_MIN_WIDTH, this.tooltipText.width + 32);
+    this.tooltipBg.clear();
+    this.tooltipBg.fillStyle(0x020617, 0.92);
+    this.tooltipBg.fillRoundedRect(-width / 2, -22, width, 36, 14);
+    this.tooltipBg.lineStyle(2, 0xffffff, 0.12);
+    this.tooltipBg.strokeRoundedRect(-width / 2, -22, width, 36, 14);
+    const y = Math.max(60, pointer.y - 42);
+    this.tooltip.setPosition(pointer.x, y);
+    this.tooltip.setVisible(true);
+  }
+
+  moveTooltip(pointer) {
+    if (!this.tooltip?.visible) {
+      return;
+    }
+    const y = Math.max(60, pointer.y - 42);
+    this.tooltip.setPosition(pointer.x, y);
+  }
+
+  hideTooltip() {
+    if (!this.tooltip) {
+      return;
+    }
+    this.tooltip.setVisible(false);
+  }
+
   setButtonEnabled(button, enabled) {
     if (!button) return;
     button.disabled = !enabled;
     button.alpha = enabled ? 1 : 0.4;
-    button.bg.setFillStyle(enabled ? button.baseColor : 0x475569, enabled ? 0.92 : 0.6);
-    if (button.text) {
+    button.bg?.setFillStyle(enabled ? button.baseColor : 0x475569, enabled ? 0.92 : 0.6);
+    if (button.text?.setColor) {
       button.text.setColor(enabled ? '#f8fafc' : '#94a3b8');
     }
   }
@@ -894,21 +1020,23 @@ export class UIManager {
     if (!button) return;
     button.disabled = !enabled;
     if (!enabled) {
-      button.bg.setFillStyle(0x475569, 0.6);
-      button.text.setColor('#94a3b8');
+      button.bg?.setFillStyle(0x475569, 0.6);
+      button.text?.setColor('#94a3b8');
     } else {
       if (button.active) {
         button.setToggleState(true);
       } else {
-        button.bg.setFillStyle(button.baseColor, 0.92);
-        button.text.setColor('#f8fafc');
+        button.bg?.setFillStyle(button.baseColor, 0.92);
+        button.text?.setColor('#f8fafc');
       }
     }
   }
 
   handleResize(gameSize) {
     const { width, height } = gameSize;
-    this.actionBar.x = width - ACTION_BUTTON_SIZE - 24;
+    this.hideTooltip();
+    this.actionBar.x = width - ACTION_BUTTON_SIZE - 42;
+    this.actionBar.y = 32;
     this.layoutActionButtons();
 
     this.selectionCard.x = width / 2;
@@ -926,12 +1054,17 @@ export class UIManager {
         this.drawUiProgress(this.selectedTree);
       }
     }
+    this.drawSelectionPanels(newWidth);
 
     this.plotTitle.x = -newWidth / 2 + 24;
     this.plotDetails.x = -newWidth / 2 + 24;
     this.treeTitle.x = newWidth / 2 - 24;
     this.treeDetails.x = newWidth / 2 - 24;
     this.treeButtonRow.x = newWidth / 2 - 24;
+    if (this.selectionDivider) {
+      this.selectionDivider.y = 18;
+      this.selectionDivider.setDisplaySize(2, CARD_HEIGHT - 36);
+    }
 
     this.toastContainer.x = width / 2;
     this.toastContainer.y = height - 80;

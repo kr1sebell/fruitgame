@@ -4,9 +4,9 @@ body {
   padding: 0;
   height: 100%;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: radial-gradient(circle at top, #dff9fb 0%, #74b9ff 60%, #0984e3 100%);
+  background: radial-gradient(circle at top, #2563eb 0%, #0f172a 65%, #020617 100%);
   overflow: hidden;
-  color: #2d3436;
+  color: #e2e8f0;
 }
 
 #game-container {

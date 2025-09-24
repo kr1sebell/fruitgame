@@ -55,11 +55,11 @@ export class Tree {
     this.label = this.scene.add.text(position.x, position.y - 62, this.getLabelText(), {
       fontSize: '12px',
       fontFamily: 'Segoe UI',
-      color: '#2d3436'
+      color: '#e2e8f0'
     });
     this.label.setOrigin(0.5, 1);
-    this.label.setBackgroundColor('rgba(255,255,255,0.82)');
-    this.label.setPadding(6, 3);
+    this.label.setBackgroundColor('rgba(15,23,42,0.82)');
+    this.label.setPadding(8, 4);
     this.label.setDepth(position.y + 45);
     this.label.setData('ui', false);
 
@@ -154,6 +154,7 @@ export class Tree {
         if (this.autoHarvest) this.autoHarvest = false;
         this.plot.autoHarvest = false;
         this.plot.autoWater = false;
+        this.plot.refreshBadge();
         this.scene.events.emit('plot:selected', this.plot);
       }
     }
@@ -217,7 +218,7 @@ export class Tree {
     this.progressBar.clear();
     this.progressBar.fillStyle(0x2d3436, 0.55);
     this.progressBar.fillRoundedRect(position.x - PROGRESS_WIDTH / 2, position.y + 28, PROGRESS_WIDTH, PROGRESS_HEIGHT, 3);
-    const color = this.isMature ? 0xf9ca24 : 0x27ae60;
+    const color = this.isMature ? 0xfacc15 : 0x38bdf8;
     const width = PROGRESS_WIDTH * (this.isMature ? 1 : this.growthProgress);
     this.progressBar.fillStyle(color, 0.95);
     this.progressBar.fillRoundedRect(
