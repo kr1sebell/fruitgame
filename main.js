@@ -5,9 +5,10 @@ const container = document.getElementById('game-container');
 const config = {
   type: Phaser.AUTO,
   width: window.innerWidth,
-  height: Math.floor(window.innerHeight * 0.68),
+  height: window.innerHeight,
   parent: container,
   backgroundColor: '#74b9ff',
+  pixelArt: true,
   scene: [MainScene]
 };
 
@@ -15,6 +16,6 @@ const game = new Phaser.Game(config);
 
 window.addEventListener('resize', () => {
   const width = window.innerWidth;
-  const height = Math.floor(window.innerHeight * 0.68);
+  const height = window.innerHeight;
   game.scale.resize(width, height);
 });

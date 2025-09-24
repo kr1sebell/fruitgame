@@ -32,8 +32,20 @@ export class Plot {
     this.tile = this.scene.add.image(iso.x, iso.y, 'plot-tile');
     this.tile.setDepth(iso.y - 10);
     this.tile.setInteractive({ useHandCursor: true });
-    this.tile.on('pointerdown', () => {
+    this.tile.setData('plot', this);
+    this.tile.setData('ui', false);
+    this.tile.on('pointerdown', (pointer) => {
+      if (!pointer.leftButtonDown()) {
+        return;
+      }
+      this.scene.ui?.flashSelectionPanel();
       this.scene.events.emit('plot:selected', this);
+    });
+    this.tile.on('pointerover', () => {
+      this.tile.setTint(0xfff9c4);
+    });
+    this.tile.on('pointerout', () => {
+      this.tile.clearTint();
     });
   }
 

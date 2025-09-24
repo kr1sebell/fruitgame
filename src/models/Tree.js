@@ -13,6 +13,7 @@ export class Tree {
     this.autoHarvest = data.autoHarvest || false;
     this.lastAutoCharge = data.lastAutoCharge || Date.now();
     this.sprite = null;
+    this.label = null;
     this.createSprite();
   }
 
@@ -20,15 +21,53 @@ export class Tree {
     if (this.sprite) {
       this.sprite.destroy();
     }
+    if (this.label) {
+      this.label.destroy();
+    }
     const position = this.plot.getTreeIsoPosition(this);
     const stageTexture = `tree-stage-${this.level}`;
     this.sprite = this.scene.add.image(position.x, position.y, stageTexture);
     this.sprite.setDepth(position.y);
     this.sprite.setData('tree', this);
+    this.sprite.setData('ui', false);
     this.sprite.setInteractive({ useHandCursor: true });
-    this.sprite.on('pointerdown', () => {
+    this.sprite.on('pointerdown', (pointer) => {
+      if (!pointer.leftButtonDown()) {
+        return;
+      }
+      this.scene.ui?.flashSelectionPanel();
       this.scene.events.emit('tree:selected', this);
     });
+    this.sprite.on('pointerover', () => {
+      this.sprite.setScale(1.05);
+    });
+    this.sprite.on('pointerout', () => {
+      this.sprite.setScale(1);
+    });
+
+    this.label = this.scene.add.text(position.x, position.y - 58, this.getLabelText(), {
+      fontSize: '12px',
+      fontFamily: 'Segoe UI',
+      color: '#2d3436'
+    });
+    this.label.setOrigin(0.5, 1);
+    this.label.setBackgroundColor('rgba(255,255,255,0.72)');
+    this.label.setPadding(6, 2);
+    this.label.setDepth(position.y + 40);
+    this.label.setData('ui', false);
+  }
+
+  getLabelText() {
+    const progress = Math.round(this.growthProgress * 100);
+    const autoIcons = `${this.autoWater || this.plot.autoWater ? '💧' : ''}${
+      this.autoHarvest || this.plot.autoHarvest ? '🧺' : ''
+    }`;
+    if (this.level <= 0) {
+      return `Семечко ${progress}%`;
+    }
+    const ready = this.canHarvest() && this.growthProgress === 0;
+    const status = ready ? 'готово' : `${progress}%`;
+    return `L${this.level} ${status}${autoIcons ? ` ${autoIcons}` : ''}`;
   }
 
   get maxLevel() {
@@ -49,6 +88,9 @@ export class Tree {
     const now = Date.now();
     this.chargeAuto(now);
     if (this.level >= this.maxLevel) {
+      if (this.label) {
+        this.label.setText(this.getLabelText());
+      }
       if (this.autoHarvest || this.plot.autoHarvest) {
         this.harvest();
       }
@@ -70,6 +112,10 @@ export class Tree {
     const shouldAutoHarvest = this.autoHarvest || this.plot.autoHarvest;
     if (shouldAutoHarvest && this.canHarvest() && this.growthProgress >= 0.85) {
       this.harvest();
+    }
+
+    if (this.label) {
+      this.label.setText(this.getLabelText());
     }
   }
 
@@ -126,6 +172,9 @@ export class Tree {
     this.growthProgress = 0;
     this.createSprite();
     this.scene.events.emit('tree:selected', this);
+    if (this.label) {
+      this.label.setText(this.getLabelText());
+    }
     return {
       type: cropType,
       amount: yieldAmount,

@@ -18,6 +18,10 @@ export class MainScene extends Phaser.Scene {
     this.ui = null;
     this.player = null;
     this.debugPanel = null;
+    this.selectionMarker = null;
+    this.cursors = null;
+    this.keys = null;
+    this.dragCamera = { active: false, x: 0, y: 0 };
     this.plotSlots = [
       { x: 2, y: 2 },
       { x: 3, y: 2 },
@@ -35,12 +39,25 @@ export class MainScene extends Phaser.Scene {
   create(data) {
     const width = this.scale.width;
     this.origin.x = width / 2;
-    this.origin.y = 120;
+    this.origin.y = 180;
 
     const savedState = SaveManager.load();
     this.player = new Player(this, savedState);
 
     this.createWorld();
+
+    this.selectionMarker = this.add.image(0, 0, 'plot-highlight');
+    this.selectionMarker.setVisible(false);
+    this.selectionMarker.setAlpha(0.9);
+    this.selectionMarker.setDepth(900);
+
+    const camera = this.cameras.main;
+    const mapWidth = (WORLD_COLS + WORLD_ROWS) * (TILE_WIDTH / 2);
+    const mapHeight = (WORLD_COLS + WORLD_ROWS) * (TILE_HEIGHT / 2) + 600;
+    camera.setZoom(0.9);
+    camera.setBounds(this.origin.x - mapWidth - 200, this.origin.y - 320, mapWidth * 2 + 400, mapHeight);
+    camera.centerOn(this.origin.x, this.origin.y + 160);
+    camera.roundPixels = true;
 
     this.ui = new UIManager(this);
     this.debugPanel = new DebugPanel(this);
@@ -52,6 +69,60 @@ export class MainScene extends Phaser.Scene {
 
     this.player.factory.createSprite(this.toIsoPoint(1, 4));
     this.createWarehouseSprite();
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keys = this.input.keyboard.addKeys({ W: 'W', A: 'A', S: 'S', D: 'D' });
+
+    this.input.mouse.disableContextMenu();
+    this.input.on('pointerdown', (pointer, gameObjects) => {
+      const clickedUI = gameObjects.some((obj) => obj?.getData && obj.getData('ui'));
+      if (pointer.rightButtonDown() || pointer.middleButtonDown()) {
+        if (clickedUI) {
+          return;
+        }
+        this.dragCamera.active = true;
+        this.dragCamera.x = pointer.x;
+        this.dragCamera.y = pointer.y;
+        return;
+      }
+      if (!clickedUI) {
+        const clickedInteractive = gameObjects.some((obj) => {
+          if (!obj?.getData) return false;
+          return obj.getData('plot') || obj.getData('tree') || obj.getData('factory');
+        });
+        if (!clickedInteractive) {
+          this.events.emit('ui:clear-selection');
+        }
+      }
+    });
+
+    this.input.on('pointerup', () => {
+      this.dragCamera.active = false;
+    });
+
+    this.input.on('pointermove', (pointer) => {
+      if (this.dragCamera.active) {
+        const cam = this.cameras.main;
+        cam.scrollX -= (pointer.x - this.dragCamera.x) / cam.zoom;
+        cam.scrollY -= (pointer.y - this.dragCamera.y) / cam.zoom;
+        this.dragCamera.x = pointer.x;
+        this.dragCamera.y = pointer.y;
+      }
+    });
+
+    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => {
+      const cam = this.cameras.main;
+      const zoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, 0.65, 1.6);
+      cam.setZoom(zoom);
+    });
+
+    this.events.on('plot:selected', (plot) => this.highlightPlot(plot));
+    this.events.on('tree:selected', (tree) => this.highlightPlot(tree ? tree.plot : null));
+    this.events.on('ui:clear-selection', () => this.highlightPlot(null));
+
+    if (this.player.plots.length > 0) {
+      this.events.emit('plot:selected', this.player.plots[0]);
+    }
 
     this.time.addEvent({
       delay: 10000,
@@ -98,6 +169,20 @@ export class MainScene extends Phaser.Scene {
     this.createTreeTexture(2, 0x45ce30);
     this.createTreeTexture(3, 0x22a6b3);
     this.createTreeTexture(4, 0xf0932b);
+
+    const highlight = this.add.graphics();
+    highlight.lineStyle(4, 0xf9ca24, 0.9);
+    highlight.fillStyle(0xffffff, 0.18);
+    highlight.beginPath();
+    highlight.moveTo(TILE_WIDTH / 2, 4);
+    highlight.lineTo(TILE_WIDTH - 4, TILE_HEIGHT / 2);
+    highlight.lineTo(TILE_WIDTH / 2, TILE_HEIGHT - 4);
+    highlight.lineTo(4, TILE_HEIGHT / 2);
+    highlight.closePath();
+    highlight.fillPath();
+    highlight.strokePath();
+    highlight.generateTexture('plot-highlight', TILE_WIDTH, TILE_HEIGHT);
+    highlight.destroy();
 
     const factory = this.add.graphics();
     factory.fillStyle(0x6c5ce7, 1);
@@ -162,6 +247,21 @@ export class MainScene extends Phaser.Scene {
     const sprite = this.add.image(pos.x, pos.y, 'warehouse');
     sprite.setOrigin(0.5, 0.75);
     sprite.setDepth(pos.y + 5);
+    sprite.setData('ui', false);
+    sprite.setInteractive({ useHandCursor: true });
+    sprite.on('pointerdown', (pointer) => {
+      if (!pointer.leftButtonDown()) {
+        return;
+      }
+      this.ui?.flashStoragePanel();
+      this.events.emit('storage:changed');
+    });
+    sprite.on('pointerover', () => {
+      sprite.setTint(0x81ecec);
+    });
+    sprite.on('pointerout', () => {
+      sprite.clearTint();
+    });
   }
 
   toIsoPoint(col, row) {
@@ -318,6 +418,20 @@ export class MainScene extends Phaser.Scene {
     SaveManager.save(this.player.toJSON());
   }
 
+  highlightPlot(plot) {
+    if (!this.selectionMarker) {
+      return;
+    }
+    if (!plot) {
+      this.selectionMarker.setVisible(false);
+      return;
+    }
+    const iso = this.toIsoPoint(plot.position.x, plot.position.y);
+    this.selectionMarker.setVisible(true);
+    this.selectionMarker.setPosition(iso.x, iso.y);
+    this.selectionMarker.setDepth(iso.y - 8);
+  }
+
   debugFastForward() {
     const delta = 60000; // 60 seconds
     this.player.plots.forEach((plot) => {
@@ -343,7 +457,33 @@ export class MainScene extends Phaser.Scene {
 
   update(time, delta) {
     if (!this.player) return;
+    this.handleCameraControls(delta);
     this.player.update(delta);
-    this.debugPanel.update();
+    if (this.ui) {
+      this.ui.update(delta);
+    }
+    if (this.debugPanel) {
+      this.debugPanel.update();
+    }
+  }
+
+  handleCameraControls(delta) {
+    if (!this.cameras?.main) {
+      return;
+    }
+    const cam = this.cameras.main;
+    const speed = (delta / 1000) * (360 / cam.zoom);
+    if (this.cursors?.left?.isDown || this.keys?.A?.isDown) {
+      cam.scrollX -= speed;
+    }
+    if (this.cursors?.right?.isDown || this.keys?.D?.isDown) {
+      cam.scrollX += speed;
+    }
+    if (this.cursors?.up?.isDown || this.keys?.W?.isDown) {
+      cam.scrollY -= speed;
+    }
+    if (this.cursors?.down?.isDown || this.keys?.S?.isDown) {
+      cam.scrollY += speed;
+    }
   }
 }

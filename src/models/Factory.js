@@ -18,8 +18,20 @@ export class Factory {
     this.sprite.setOrigin(0.5, 0.8);
     this.sprite.setDepth(position.y + 10);
     this.sprite.setInteractive({ useHandCursor: true });
-    this.sprite.on('pointerdown', () => {
+    this.sprite.setData('factory', this);
+    this.sprite.setData('ui', false);
+    this.sprite.on('pointerdown', (pointer) => {
+      if (!pointer.leftButtonDown()) {
+        return;
+      }
+      this.scene.ui?.flashFactoryPanel();
       this.scene.events.emit('factory:selected', this);
+    });
+    this.sprite.on('pointerover', () => {
+      this.sprite.setTint(0xffd180);
+    });
+    this.sprite.on('pointerout', () => {
+      this.sprite.clearTint();
     });
   }
 
