@@ -323,6 +323,26 @@ export class MainScene extends Phaser.Scene {
     SaveManager.save(this.player.toJSON());
   }
 
+  handleUpgradeTree(tree) {
+    if (!tree) {
+      return;
+    }
+    if (tree.level >= tree.maxLevel) {
+      this.events.emit('ui:toast', 'Дерево уже на максимальном уровне');
+      return;
+    }
+    const cost = this.player.calculateTreeUpgradeCost(tree);
+    if (this.player.currency < cost) {
+      this.events.emit('ui:toast', 'Нужно больше монет для улучшения');
+      return;
+    }
+    this.player.currency -= cost;
+    tree.upgrade();
+    this.events.emit('economy:changed');
+    this.events.emit('tree:selected', tree);
+    SaveManager.save(this.player.toJSON());
+  }
+
   handleUpgradeStorage() {
     const cost = this.player.calculateStorageUpgradeCost();
     if (this.player.currency < cost) {
@@ -332,6 +352,7 @@ export class MainScene extends Phaser.Scene {
     this.player.currency -= cost;
     this.player.upgradeStorage();
     this.events.emit('economy:changed');
+    this.events.emit('storage:changed');
     SaveManager.save(this.player.toJSON());
   }
 

@@ -1,3 +1,11 @@
+import {
+  TREE_PLANT_COST,
+  TREE_PLANT_COST_STEP,
+  PLOT_PURCHASE_COSTS,
+  PLOT_UPGRADE_COSTS,
+  STORAGE_UPGRADE_COSTS,
+  TREE_UPGRADE_COSTS
+} from '../gameConfig.js';
 import { Plot } from './Plot.js';
 import { Storage } from './Storage.js';
 import { Factory } from './Factory.js';
@@ -78,20 +86,27 @@ export class Player {
   }
 
   calculatePlotCost() {
-    return 150 + this.plots.length * 75;
+    const index = Math.min(this.plots.length + 1, PLOT_PURCHASE_COSTS.length - 1);
+    return PLOT_PURCHASE_COSTS[index];
   }
 
   calculateTreeCost(plot) {
-    const base = 50;
-    return base + plot.trees.length * 25;
+    return TREE_PLANT_COST + plot.trees.length * TREE_PLANT_COST_STEP;
   }
 
   calculatePlotUpgradeCost(plot) {
-    return 100 * plot.level;
+    const index = Math.min(plot.level + 1, PLOT_UPGRADE_COSTS.length - 1);
+    return PLOT_UPGRADE_COSTS[index];
   }
 
   calculateStorageUpgradeCost() {
-    return 120 * this.storage.level;
+    const index = Math.min(this.storage.level + 1, STORAGE_UPGRADE_COSTS.length - 1);
+    return STORAGE_UPGRADE_COSTS[index];
+  }
+
+  calculateTreeUpgradeCost(tree) {
+    const index = Math.min(tree.level + 1, TREE_UPGRADE_COSTS.length - 1);
+    return TREE_UPGRADE_COSTS[index];
   }
 
   toggleDebugMode(value) {

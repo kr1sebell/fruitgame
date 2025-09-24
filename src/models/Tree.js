@@ -1,6 +1,8 @@
 import { TREE_DATA, AUTO_COSTS } from '../gameConfig.js';
 
-const AUTO_INTERVAL = 5 * 60 * 1000; // 5 real minutes ~ in-game day
+const AUTO_INTERVAL = 6 * 60 * 1000;
+const PROGRESS_WIDTH = 60;
+const PROGRESS_HEIGHT = 6;
 
 export class Tree {
   constructor(scene, plot, data) {
@@ -8,12 +10,14 @@ export class Tree {
     this.plot = plot;
     this.id = data.id;
     this.level = data.level ?? 0;
-    this.growthProgress = data.growthProgress ?? 0;
+    this.growthProgress = Phaser.Math.Clamp(data.growthProgress ?? 0, 0, 1);
+    this.isMature = data.isMature ?? this.growthProgress >= 1;
     this.autoWater = data.autoWater || false;
     this.autoHarvest = data.autoHarvest || false;
     this.lastAutoCharge = data.lastAutoCharge || Date.now();
     this.sprite = null;
     this.label = null;
+    this.progressBar = null;
     this.createSprite();
   }
 
@@ -24,8 +28,11 @@ export class Tree {
     if (this.label) {
       this.label.destroy();
     }
+    if (this.progressBar) {
+      this.progressBar.destroy();
+    }
     const position = this.plot.getTreeIsoPosition(this);
-    const stageTexture = `tree-stage-${this.level}`;
+    const stageTexture = this.getTextureKey();
     this.sprite = this.scene.add.image(position.x, position.y, stageTexture);
     this.sprite.setDepth(position.y);
     this.sprite.setData('tree', this);
@@ -45,29 +52,38 @@ export class Tree {
       this.sprite.setScale(1);
     });
 
-    this.label = this.scene.add.text(position.x, position.y - 58, this.getLabelText(), {
+    this.label = this.scene.add.text(position.x, position.y - 62, this.getLabelText(), {
       fontSize: '12px',
       fontFamily: 'Segoe UI',
       color: '#2d3436'
     });
     this.label.setOrigin(0.5, 1);
-    this.label.setBackgroundColor('rgba(255,255,255,0.72)');
-    this.label.setPadding(6, 2);
-    this.label.setDepth(position.y + 40);
+    this.label.setBackgroundColor('rgba(255,255,255,0.82)');
+    this.label.setPadding(6, 3);
+    this.label.setDepth(position.y + 45);
     this.label.setData('ui', false);
+
+    this.progressBar = this.scene.add.graphics();
+    this.progressBar.setDepth(position.y + 30);
+    this.progressBar.setData('ui', false);
+    this.drawProgressBar();
+  }
+
+  getTextureKey() {
+    const stage = Phaser.Math.Clamp(this.level, 0, TREE_DATA.levels.length - 1);
+    return `tree-stage-${stage}`;
   }
 
   getLabelText() {
-    const progress = Math.round(this.growthProgress * 100);
     const autoIcons = `${this.autoWater || this.plot.autoWater ? '💧' : ''}${
       this.autoHarvest || this.plot.autoHarvest ? '🧺' : ''
     }`;
-    if (this.level <= 0) {
-      return `Семечко ${progress}%`;
+    if (!this.isMature) {
+      const progress = Math.round(this.growthProgress * 100);
+      const stageName = this.level <= 0 ? 'Семечко' : `L${this.level}`;
+      return `${stageName}: ${progress}%${autoIcons ? ` ${autoIcons}` : ''}`;
     }
-    const ready = this.canHarvest() && this.growthProgress === 0;
-    const status = ready ? 'готово' : `${progress}%`;
-    return `L${this.level} ${status}${autoIcons ? ` ${autoIcons}` : ''}`;
+    return `Урожай готов! L${Math.max(1, this.level)}${autoIcons ? ` ${autoIcons}` : ''}`;
   }
 
   get maxLevel() {
@@ -79,44 +95,43 @@ export class Tree {
   }
 
   getCurrentStageDuration() {
-    const base = TREE_DATA.baseGrowthSeconds * 1000;
-    const multiplier = 1 + this.level * 0.4;
-    return base * multiplier;
+    const index = Phaser.Math.Clamp(this.level, 0, TREE_DATA.levels.length - 1);
+    const data = TREE_DATA.levels[index];
+    return (data?.growthSeconds || 60) * 1000;
   }
 
   update(delta) {
     const now = Date.now();
     this.chargeAuto(now);
-    if (this.level >= this.maxLevel) {
-      if (this.label) {
-        this.label.setText(this.getLabelText());
-      }
+    if (this.isMature) {
       if (this.autoHarvest || this.plot.autoHarvest) {
         this.harvest();
       }
+      this.refreshVisuals();
       return;
     }
+
     let duration = this.getCurrentStageDuration();
-    const autoWater = this.autoWater || this.plot.autoWater;
-    if (autoWater) {
-      duration *= 0.7;
+    if (this.autoWater || this.plot.autoWater) {
+      duration *= 1 - TREE_DATA.autoWaterBoost;
     }
-    this.growthProgress += delta / duration;
+    this.growthProgress = Phaser.Math.Clamp(this.growthProgress + delta / duration, 0, 1);
+
     if (this.growthProgress >= 1) {
-      this.level += 1;
-      this.growthProgress = 0;
-      this.createSprite();
-      this.scene.events.emit('tree:leveled', this);
+      this.growthProgress = 1;
+      if (this.level === 0) {
+        this.level = 1;
+        this.isMature = true;
+        this.refreshVisuals(true);
+      } else {
+        this.isMature = true;
+        this.refreshVisuals();
+      }
+      this.scene.events.emit('tree:ready', this);
+      return;
     }
 
-    const shouldAutoHarvest = this.autoHarvest || this.plot.autoHarvest;
-    if (shouldAutoHarvest && this.canHarvest() && this.growthProgress >= 0.85) {
-      this.harvest();
-    }
-
-    if (this.label) {
-      this.label.setText(this.getLabelText());
-    }
+    this.refreshVisuals();
   }
 
   chargeAuto(now) {
@@ -145,7 +160,7 @@ export class Tree {
   }
 
   canHarvest() {
-    return this.level > 0;
+    return this.isMature && this.level > 0;
   }
 
   harvest() {
@@ -156,25 +171,16 @@ export class Tree {
     const cropType = 'apple';
     const yieldAmount = data.yield;
     const valuePerUnit = data.value;
-    this.level = Math.max(1, this.level);
     if (!this.plot.scene.player.storage.hasSpace(yieldAmount)) {
       this.scene.events.emit('ui:toast', 'Склад переполнен!');
       return null;
     }
     this.plot.scene.player.storage.addCrop(cropType, yieldAmount, valuePerUnit);
     this.scene.events.emit('storage:changed');
-    if (this.autoHarvest || this.plot.autoHarvest) {
-      // After auto harvest, tree loses one level but keeps some progress to simulate regrowth
-      this.level = Math.max(1, this.level - 1);
-    } else {
-      this.level = 1; // reset to level 1 when manually harvested
-    }
+    this.isMature = false;
     this.growthProgress = 0;
-    this.createSprite();
+    this.refreshVisuals(true);
     this.scene.events.emit('tree:selected', this);
-    if (this.label) {
-      this.label.setText(this.getLabelText());
-    }
     return {
       type: cropType,
       amount: yieldAmount,
@@ -182,11 +188,53 @@ export class Tree {
     };
   }
 
+  upgrade() {
+    if (this.level >= this.maxLevel) {
+      return false;
+    }
+    this.level += 1;
+    this.refreshVisuals(true);
+    this.scene.events.emit('tree:upgraded', this);
+    return true;
+  }
+
+  refreshVisuals(recreate = false) {
+    if (recreate) {
+      this.createSprite();
+      return;
+    }
+    if (this.label) {
+      this.label.setText(this.getLabelText());
+    }
+    this.drawProgressBar();
+  }
+
+  drawProgressBar() {
+    if (!this.progressBar) {
+      return;
+    }
+    const position = this.plot.getTreeIsoPosition(this);
+    this.progressBar.clear();
+    this.progressBar.fillStyle(0x2d3436, 0.55);
+    this.progressBar.fillRoundedRect(position.x - PROGRESS_WIDTH / 2, position.y + 28, PROGRESS_WIDTH, PROGRESS_HEIGHT, 3);
+    const color = this.isMature ? 0xf9ca24 : 0x27ae60;
+    const width = PROGRESS_WIDTH * (this.isMature ? 1 : this.growthProgress);
+    this.progressBar.fillStyle(color, 0.95);
+    this.progressBar.fillRoundedRect(
+      position.x - PROGRESS_WIDTH / 2 + 1,
+      position.y + 28 + 1,
+      Math.max(0, width - 2),
+      PROGRESS_HEIGHT - 2,
+      3
+    );
+  }
+
   toJSON() {
     return {
       id: this.id,
       level: this.level,
       growthProgress: this.growthProgress,
+      isMature: this.isMature,
       autoWater: this.autoWater,
       autoHarvest: this.autoHarvest,
       lastAutoCharge: this.lastAutoCharge

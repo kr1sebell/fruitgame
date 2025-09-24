@@ -4,7 +4,7 @@ export const WORLD_ROWS = 6;
 export const WORLD_COLS = 6;
 
 export const INITIAL_PLAYER_STATE = {
-  currency: 200,
+  currency: 250,
   plots: [
     {
       id: 'plot-1',
@@ -15,6 +15,7 @@ export const INITIAL_PLAYER_STATE = {
           id: 'tree-1',
           level: 0,
           growthProgress: 0,
+          isMature: false,
           plantedAt: Date.now(),
           autoWater: false,
           autoHarvest: false,
@@ -42,14 +43,14 @@ export const INITIAL_PLAYER_STATE = {
 };
 
 export const TREE_DATA = {
-  baseGrowthSeconds: 45,
   levels: [
-    { yield: 0 },
-    { yield: 2, value: 6 },
-    { yield: 3, value: 10 },
-    { yield: 4, value: 15 },
-    { yield: 6, value: 24 }
+    { growthSeconds: 42, yield: 0, value: 0 },
+    { growthSeconds: 64, yield: 2, value: 7 },
+    { growthSeconds: 56, yield: 3, value: 11 },
+    { growthSeconds: 48, yield: 5, value: 17 },
+    { growthSeconds: 40, yield: 7, value: 25 }
   ],
+  autoWaterBoost: 0.35,
   maxLevel: 4
 };
 
@@ -70,3 +71,10 @@ export const AUTO_COSTS = {
 
 export const SPOIL_SECONDS = 120;
 export const SAVE_KEY = 'fruit-dominion-save-v1';
+
+export const TREE_UPGRADE_COSTS = [0, 0, 160, 340, 620];
+export const TREE_PLANT_COST = 90;
+export const TREE_PLANT_COST_STEP = 25;
+export const PLOT_PURCHASE_COSTS = [0, 0, 260, 360, 520, 760];
+export const PLOT_UPGRADE_COSTS = [0, 180, 360, 640, 980];
+export const STORAGE_UPGRADE_COSTS = [0, 160, 340, 720, 1200];
