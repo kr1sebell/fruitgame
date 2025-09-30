@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fruit Dominion</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-root">
+    <canvas id="game-canvas" width="1024" height="768"></canvas>
+    <div id="hud">
+      <div class="hud-section" id="hud-balance">
+        <span class="hud-icon coin" aria-hidden="true"></span>
+        <span id="balance-value"></span>
+      </div>
+      <div class="hud-section" id="hud-storage">
+        <button id="storage-btn" class="hud-btn">Склад</button>
+        <span id="storage-status"></span>
+      </div>
+      <div class="hud-section" id="hud-factory">
+        <button id="factory-btn" class="hud-btn">Завод</button>
+        <span id="factory-status"></span>
+      </div>
+      <div class="hud-section" id="hud-settings">
+        <button id="settings-btn" class="hud-btn">Настройки</button>
+      </div>
+    </div>
+
+    <div id="selection-panel" class="panel hidden">
+      <h3 id="selection-title"></h3>
+      <div id="selection-content"></div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <div id="modal-overlay" class="hidden">
+      <div class="modal" id="modal-storage">
+        <div class="modal-header">
+          <h2>Склад</h2>
+          <button class="modal-close" data-close>&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="storage-inventory"></div>
+          <div class="modal-actions">
+            <button id="storage-upgrade" class="primary">Улучшить склад</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal" id="modal-factory">
+        <div class="modal-header">
+          <h2>Завод</h2>
+          <button class="modal-close" data-close>&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="factory-queue"></div>
+          <div class="modal-actions">
+            <button id="factory-start" class="primary">Произвести сок</button>
+            <button id="factory-upgrade" class="secondary">Улучшить завод</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal" id="modal-settings">
+        <div class="modal-header">
+          <h2>Настройки</h2>
+          <button class="modal-close" data-close>&times;</button>
+        </div>
+        <div class="modal-body">
+          <label class="toggle">
+            <input type="checkbox" id="toggle-debug" />
+            <span>Debug Mode</span>
+          </label>
+          <button id="buy-plot" class="primary full-width">Купить новый участок</button>
+          <div id="debug-panel" class="hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="debug-overlay" class="hidden">
+      <div id="debug-stats"></div>
+      <div id="debug-controls">
+        <button id="debug-add-money">+500 монет</button>
+        <button id="debug-fast-forward">Fast forward</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
